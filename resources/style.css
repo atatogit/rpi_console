@@ -1,0 +1,34 @@
+body {
+    font-family: arial, helvetica, sans-serif;
+    font-size: 14px;
+    color: black;
+    background-color: #FFFF66;
+    margin: 20px;
+    padding: 0;
+}
+
+h1 {
+    color: #ffc;
+    background-color: #A00000;
+    font-size: 2em;
+    margin: 0;
+    margin-bottom: 7px;
+    padding: 4px;
+    font-style: italic;
+    text-align: center;
+    letter-spacing: 0.2em;
+}
+
+b {
+    font-style: italic;
+    text-transform: capitalize;
+}
+
+li {
+    color: black;
+    font-style: italic;
+}
+
+.toc {
+    margin-bottom: 5px
+}

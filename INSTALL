@@ -1,0 +1,7 @@
+Copy files to 
+/usr/local/bin/rpi_web_console
+
+copy and +x rpi_web_console.sh to /etc/init.d
+
+to start at boot, run 
+sudo update-rc.d myservice.sh defaults
