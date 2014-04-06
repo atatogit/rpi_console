@@ -32,3 +32,32 @@ li {
 .toc {
     margin-bottom: 5px
 }
+
+table.rtorrent_download_table {
+    width: 100%;
+    margin: 10px auto;
+    border-collapse: collapse;
+    border-style: solid;
+    border-width: 2px;
+    border-color: #A00000;
+}
+
+table.rtorrent_download_table th {
+    border-style: solid;
+    border-width: 1px;
+    border-color: #A00000;
+    color: #ffc;
+    background-color: #A00000;
+}
+
+table.rtorrent_download_table td {
+    text-align: center;
+    padding: 5px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #A00000;
+}
+
+table.rtorrent_download_table td:first-child {
+    text-align: left;
+}

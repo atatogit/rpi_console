@@ -9,8 +9,6 @@ import urlparse
 
 import torrent
 
-RTORRENT_WATCH_DIR = "/home/seba/rtorrent_watch/"
-
 HTML_HEADER = """\
 <html><head><title>Raspi Console</title>
 <link rel='stylesheet' href='style.css' />
@@ -21,7 +19,8 @@ HTML_TAIL = "</body></html>"
 
 HTML_TOC =  """\
 <div class="toc">
-Go to: <a href="/">Console</a>, <a href="/sysactmenu">Actions</a>
+Go to: <a href="/">Console</a>, <a href="/sysactmenu">Actions</a>,
+<a href="/rtorrentlist">rTorrent List</a>
 </div>"""
 
 HTML_ACTIONS_TITLE = "<h1>Raspi System Action</h1>"
@@ -130,29 +129,34 @@ def SysConsoleHandler(parsed_path):
     html.extend(["</ul>", HTML_TAIL])
     return 200, "\n".join(html)
 
-# Returns the name of the created file. Raises an exception in case of error.
-def __CreateTorrentFile(link):
-    if torrent.IsTorrentLink(link):
-        return torrent.DownloadTorrentFile(link, RTORRENT_WATCH_DIR)
-    elif torrent.IsMagnetLink(link):
-        return torrent.CreateTorrentFileFromMagnet(link, RTORRENT_WATCH_DIR)
-    raise RuntimeError(
-        "The requested link is not recognized as magnet or torrent")
-
 def TorrentHandler(parsed_path):
-    html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Pusher</h1><ul>"]
+    html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Pusher</h1>"]
     params = urlparse.parse_qs(parsed_path.query)
-    try:
-        fname = __CreateTorrentFile(ExtractParamValue(params, "link"))
-        html.append("""\
-Successfully created file:<br>%s.<br><br>
-Note that there are no guarantees that rTorrent picked up the file, so you must
-manually check that everything is fine.""" % cgi.escape(fname))
-    except Exception as e:
-        html.append("""\
+    link = ExtractParamValue(params, "link")
+    if link is None:
+        html.append("No link specified. Nothing to do!")
+    else:
+        try:
+            torrent.PushLink(link)
+            html.append("""\
+Successfully pushed requested link. Note that there are no guarantees that
+rTorrent picked up the link, so you must manually check that everything is
+fine.""")
+        except Exception as e:
+            html.append("""\
 Oops. There has been an error. Please check below for the nature of the problem:
 <br><PRE>%s</PRE>""" % cgi.escape(str(e)))
-    html.append(HTML_TAIL)
+            html.append(HTML_TAIL)
+    return 200, "\n".join(html)
+
+def TorrentListHandler(parsed_path):
+    html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Download List</h1>"]
+    try:
+        html.append(torrent.GetDownloadListHtml())
+    except Exception as e:
+        html.append("""\
+An error has occurred getting the download list:<br><PRE>%s</PRE>""" % 
+                    cgi.escape(str(e)))
     return 200, "\n".join(html)
 
 
