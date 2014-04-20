@@ -173,9 +173,11 @@ def SearchSubsHandler(torrent_hash, name, html):
     # Using movie file most similar to the release.
     movie_file = movie_files[0]
     html.append("<div><b>Movie file:</b> %s" % cgi.escape(movie_file))
-    sub_list = subscene.SearchSubtitlesForRelease(release)
+    query = os.path.basename(movie_file)
+    if len(query) >= 5 and movie_file[-4] == '.': query = query[:-4]
+    sub_list = subscene.SearchSubtitlesForRelease(query)
     if not sub_list:
-        html.extend(["No subtitles found...", HTML_TAIL])
+        html.extend(["<br>No subtitles found...", HTML_TAIL])
         return
     html.append("<div><b>Subtitles:</b></div>")
     html.append("<div><form action='/subs' method='get'>")

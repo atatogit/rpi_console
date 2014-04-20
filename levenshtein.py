@@ -20,6 +20,10 @@ def levenshtein(a,b):
             
     return current[n]
 
+def Levenshtein2(a, b):
+    return levenshtein(
+        a.replace(" ", ".").lower(), b.replace(" ", ".").lower())
+
 if __name__=="__main__":
     from sys import argv
     print levenshtein(argv[1],argv[2])

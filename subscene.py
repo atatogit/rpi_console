@@ -8,7 +8,7 @@ import urllib
 import urllib2
 import zipfile
 
-from levenshtein import levenshtein
+from levenshtein import Levenshtein2
 
 __VID_EXTENSIONS = set((".avi", ".mpg", ".mp4", ".mkv"))
 
@@ -26,7 +26,7 @@ __SUB_LIST_ENTRY_RE = re.compile(
 
 __SUB_DOWNLOAD_LINK_RE = re.compile('href="(/subtitle/download?[^"]*)"')
 
-__MAX_NUM_SUBS = 4
+__MAX_NUM_SUBS = 5
 
 def TorrentNameToRelease(name):
     return re.sub(__VID_EXTENSIONS_RE, "", name)
@@ -35,7 +35,7 @@ def GetMovieFiles(torrent_files, release):
     movie_files = []
     for fname in torrent_files:
         if re.search(__VID_EXTENSIONS_RE, fname):
-            distance = levenshtein(fname, release) 
+            distance = Levenshtein2(fname, release) 
             movie_files.append((distance, fname))
     if not movie_files: return movie_files
     movie_files.sort()
@@ -44,12 +44,12 @@ def GetMovieFiles(torrent_files, release):
 def __GetSearchReleaseUrl(release):
     return "http://subscene.com/subtitles/release?q=%s" % urllib.quote(release)
 
-def SearchSubtitlesForRelease(release):
-    data = urllib.urlopen(__GetSearchReleaseUrl(release)).read()
+def SearchSubtitlesForRelease(query):
+    data = urllib.urlopen(__GetSearchReleaseUrl(query)).read()
     matches = re.findall(__SUB_LIST_ENTRY_RE, data)
     if not matches: return []
     stripped_matches = [(m[1].strip(), m[0].strip()) for m in matches]
-    scored_matches = [(levenshtein(release, m[0]), m) for m in stripped_matches]
+    scored_matches = [(Levenshtein2(query, m[0]), m) for m in stripped_matches]
     scored_matches.sort()
     urls_seen = set()
     subs = []
