@@ -186,9 +186,14 @@ def SearchSubsHandler(torrent_hash, name, html):
     html.append("<div><b>Subtitles:</b></div>")
     html.append("<div><form action='/subs' method='get'>")
     for i, s in enumerate(sub_list):
+        esc_url = cgi.escape(s[1])
+        esc_name = cgi.escape(s[0])
+        esc_full_url = cgi.escape(subscene.GetSubtitleUrl(s[1]))
         html.append("""\
-<input type='radio' name='suburl' value='%s' %s>%s<br>""" % (
-                cgi.escape(s[1]), "checked" if i == 0 else "", cgi.escape(s[0])))
+<input type='radio' name='suburl' value='%s' %s>%s
+<a href='%s' target='_blank'>Go to sub page</a><br>""" % (
+                esc_url, "checked" if i == 0 else "", esc_name, esc_full_url))
+                     
     html.append("""\
 <input type='submit' value='Download selected subtitle'>
 <input type='hidden' name='h' value='%s'>

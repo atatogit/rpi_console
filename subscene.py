@@ -60,7 +60,7 @@ def SearchSubtitlesForRelease(query):
         urls_seen.add(url)
     return subs
 
-def __GetSubtitleUrl(sub_url):
+def GetSubtitleUrl(sub_url):
     return "http://subscene.com/%s" % sub_url.lstrip("/")
 
 def DownloadSubtitle(sub_url):
