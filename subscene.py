@@ -64,13 +64,13 @@ def GetSubtitleUrl(sub_url):
     return "http://subscene.com/%s" % sub_url.lstrip("/")
 
 def DownloadSubtitle(sub_url):
-    data = urllib.urlopen(__GetSubtitleUrl(sub_url)).read()
+    data = urllib.urlopen(GetSubtitleUrl(sub_url)).read()
     matches = re.findall(__SUB_DOWNLOAD_LINK_RE, data)
     if len(matches) != 1:
         raise RuntimeError("Failed parsing subtitle html page.")
     sub_data_url = matches[0]
 
-    request = urllib2.Request(__GetSubtitleUrl(sub_data_url))
+    request = urllib2.Request(GetSubtitleUrl(sub_data_url))
     request.add_header('Accept-encoding', 'gzip')
     response = urllib2.urlopen(request)
     if response.info().get('Content-Encoding') == 'gzip':
