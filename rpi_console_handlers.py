@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
-import cgi
 import subprocess
 import os
 import sys
 import time
 import urlparse
 
+from html_utils import HtmlEscape
 import subscene
 import torrent
 
@@ -129,15 +129,15 @@ def SysConsoleHandler(parsed_path):
 <li><b>Memory info:</b><PRE>%s</PRE></li>
 <li><b>Free space in mounts:</b><PRE>%s</PRE></li>
 <li><b>Uptime + Users:</b><PRE>%s</PRE></li>""" % (
-            temp, cgi.escape(GetFreeMem()), cgi.escape(GetDf()), 
-            cgi.escape(GetUsers())))
+            temp, HtmlEscape(GetFreeMem()), HtmlEscape(GetDf()), 
+            HtmlEscape(GetUsers())))
     html.extend(["</ul>", HTML_TAIL])
     return 200, "\n".join(html)
 
 def __ExceptionToHtml(e):
     return """\
 Oops. There has been an error. Please check below for the nature of the problem:
-<br><PRE>%s</PRE><br>""" % cgi.escape(str(e))
+<br><PRE>%s</PRE><br>""" % HtmlEscape(str(e))
     
 def TorrentHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Download List</h1>"]
@@ -164,7 +164,7 @@ rTorrent picked up the link, so you must check that everything is fine.<br>""")
 
 def SearchSubsHandler(torrent_hash, name, html):
     release = subscene.TorrentNameToRelease(name)
-    html.append("<div><b>Release:</b> %s</div>" % cgi.escape(release))
+    html.append("<div><b>Release:</b> %s</div>" % HtmlEscape(release))
     movie_files = subscene.GetMovieFiles(
         torrent.GetTorrentFiles(torrent_hash), release)
     if not movie_files:
@@ -172,7 +172,7 @@ def SearchSubsHandler(torrent_hash, name, html):
         return
     # Using movie file most similar to the release.
     movie_file = movie_files[0]
-    html.append("<div><b>Movie file:</b> %s" % cgi.escape(movie_file))
+    html.append("<div><b>Movie file:</b> %s" % HtmlEscape(movie_file))
     movie_file_no_ext = os.path.basename(movie_file)[:-4]
     sub_list = subscene.SearchSubtitlesForRelease(release, movie_file_no_ext)
     if not sub_list:
@@ -181,9 +181,9 @@ def SearchSubsHandler(torrent_hash, name, html):
     html.append("<div><b>Subtitles:</b></div>")
     html.append("<div><form action='/subs' method='get'>")
     for i, s in enumerate(sub_list):
-        esc_url = cgi.escape(s[1])
-        esc_name = cgi.escape(s[0])
-        esc_full_url = cgi.escape(subscene.GetSubtitleUrl(s[1]))
+        esc_url = HtmlEscape(s[1])
+        esc_name = HtmlEscape(s[0])
+        esc_full_url = HtmlEscape(subscene.GetSubtitleUrl(s[1]))
         html.append("""\
 <input type='radio' name='suburl' value='%s' %s>%s
 <a href='%s' target='_blank'>Go to sub page</a><br>""" % (
@@ -193,26 +193,26 @@ def SearchSubsHandler(torrent_hash, name, html):
 <input type='submit' value='Download selected subtitle'>
 <input type='hidden' name='h' value='%s'>
 <input type='hidden' name='moviefile' value='%s'>""" % (
-            cgi.escape(torrent_hash), cgi.escape(movie_file)))
+            HtmlEscape(torrent_hash), HtmlEscape(movie_file)))
     html.append("</form></div>")
 
 def DownloadSubHandler(sub_url, movie_file, html):
     if len(movie_file) < 5 or movie_file[-4] != '.':
-        html.append("Bad movie file (not a movie?): " % cgi.escape(movie_file))
+        html.append("Bad movie file (not a movie?): " % HtmlEscape(movie_file))
         return
     movie_file = os.path.join(DOWNLOADS_DIR, movie_file)
     base_dir = os.path.dirname(movie_file)
     movie_file_noext = movie_file[:-4]
     sub_fname, sub_data = subscene.DownloadSubtitle(sub_url)
     if len(sub_fname) < 5 or sub_fname[-4] != '.':
-        html.append("Bad subtitle file name: " % cgi.escape(sub_fname))
+        html.append("Bad subtitle file name: " % HtmlEscape(sub_fname))
         return    
     sub_file = "%s.%s" % (movie_file_noext, sub_fname[-3:])
     if base_dir and not os.path.exists(base_dir): os.makedirs(base_dir)
     f = open(sub_file, "w")
     f.write(sub_data)
     f.close()
-    html.append("Successfully written %s." % cgi.escape(sub_file))
+    html.append("Successfully written %s." % HtmlEscape(sub_file))
 
 def SubsHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, "<h1>Subtitles Manager</h1>"]
@@ -228,7 +228,7 @@ def SubsHandler(parsed_path):
         if not name:
             html.extend(["Specified torrent hash not found.", HTML_TAIL])
             return 200, "\n".join(html)
-        html.append("<h2>%s</h2>" % cgi.escape(name))
+        html.append("<h2>%s</h2>" % HtmlEscape(name))
 
         if not sub_url:
             SearchSubsHandler(torrent_hash, name, html)

@@ -1,9 +1,10 @@
 #!/usr/bin/python
 
-import cgi
 import os
 from rtorrent_xmlrpc import SCGIServerProxy
 import xmlrpclib
+
+from html_utils import HtmlEscape
 
 __STATES = ("CLOSED", "STARTED")
 
@@ -31,11 +32,11 @@ def GetDownloadListHtml():
     for c in columns: html.append("<th>%s</th>" % c)
     html.append("</tr>")
     for d in data:
-        torrent_hash = cgi.escape(d[0])
-        name = cgi.escape(d[1])
+        torrent_hash = HtmlEscape(d[0])
+        name = HtmlEscape(d[1])
         state = __STATES[d[2]]
-        size = cgi.escape(__BytesToHuman(d[3]))
-        done = cgi.escape("%d%%" % ((100 * d[4]) / d[3] if d[3] else 0))
+        size = HtmlEscape(__BytesToHuman(d[3]))
+        done = HtmlEscape("%d%%" % ((100 * d[4]) / d[3] if d[3] else 0))
         down_rate = "%d" % (d[5] / 1024)
         up_rate = "%d" % (d[6] / 1024)
         html.append("<tr>")
