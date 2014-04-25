@@ -63,7 +63,8 @@ def __SearchSubtitlesForQuery(query, queue):
         queue.put(e)
         return
 
-def SearchSubtitlesForRelease(release, movie_file):
+def SearchSubtitlesForRelease(release, movie_file, max_num_subs=None):
+    if max_num_subs is None: max_num_subs = __MAX_NUM_SUBS
     queue = Queue.Queue()
     for query in (release, movie_file):
         if type(query) == unicode:
@@ -80,7 +81,7 @@ def SearchSubtitlesForRelease(release, movie_file):
     urls_seen = set()
     subs = []
     for score, (name, url) in scored_matches:
-        if len(subs) >= __MAX_NUM_SUBS: break
+        if len(subs) >= max_num_subs: break
         if url in urls_seen: continue
         subs.append((name, url))
         urls_seen.add(url)

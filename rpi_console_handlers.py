@@ -162,7 +162,7 @@ rTorrent picked up the link, so you must check that everything is fine.<br>""")
     html.append(HTML_TAIL)
     return 200, "\n".join(html)
 
-def SearchSubsHandler(torrent_hash, name, html):
+def SearchSubsHandler(torrent_hash, name, html, max_num_subs_or_none=None):
     release = subscene.TorrentNameToRelease(name)
     html.append("<div><b>Release:</b> %s</div>" % HtmlEscape(release))
     movie_files = subscene.GetMovieFiles(
@@ -174,7 +174,8 @@ def SearchSubsHandler(torrent_hash, name, html):
     movie_file = movie_files[0]
     html.append("<div><b>Movie file:</b> %s" % HtmlEscape(movie_file))
     movie_file_no_ext = os.path.basename(movie_file)[:-4]
-    sub_list = subscene.SearchSubtitlesForRelease(release, movie_file_no_ext)
+    sub_list = subscene.SearchSubtitlesForRelease(
+        release, movie_file_no_ext, max_num_subs_or_none)
     if not sub_list:
         html.extend(["<br>No subtitles found...", HTML_TAIL])
         return
@@ -231,7 +232,9 @@ def SubsHandler(parsed_path):
         html.append("<h2>%s</h2>" % HtmlEscape(name))
 
         if not sub_url:
-            SearchSubsHandler(torrent_hash, name, html)
+            max_num_subs = ExtractParamValue(params, "max_num_subs")
+            if max_num_subs is not None: max_num_subs = int(max_num_subs)
+            SearchSubsHandler(torrent_hash, name, html, max_num_subs)
         else:
             movie_file = ExtractParamValue(params, "moviefile")
             if not movie_file:
