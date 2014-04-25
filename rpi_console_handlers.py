@@ -135,7 +135,7 @@ def SysConsoleHandler(parsed_path):
     return 200, "\n".join(html)
 
 def __ExceptionToHtml(e):
-    return """\
+    return """<br><br>\
 Oops. There has been an error. Please check below for the nature of the problem:
 <br><PRE>%s</PRE><br>""" % HtmlEscape(str(e))
     

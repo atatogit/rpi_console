@@ -6,6 +6,7 @@ import gzip
 import os
 import re
 import threading
+import unicodedata
 import urllib
 import urllib2
 import zipfile
@@ -44,17 +45,23 @@ def GetMovieFiles(torrent_files, release):
     return [x[1] for x in movie_files]
 
 def __GetSearchReleaseUrl(release):
+    if type(release) == unicode:
+        release = unicodedata.normalize('NFKD', release).encode('ascii', 'ignore')
     return "http://subscene.com/subtitles/release?q=%s" % urllib.quote(release)
 
 def __SearchSubtitlesForQuery(query, queue):
-    data = urllib.urlopen(__GetSearchReleaseUrl(query)).read()
-    matches = re.findall(__SUB_LIST_ENTRY_RE, data)
-    if not matches: 
-        queue.put([])
+    try:
+        data = urllib.urlopen(__GetSearchReleaseUrl(query)).read()
+        matches = re.findall(__SUB_LIST_ENTRY_RE, data)
+        if not matches: 
+            queue.put([])
+            return
+        stripped_matches = [(m[1].strip(), m[0].strip()) for m in matches]
+        scored_matches = [(Levenshtein2(query, m[0]), m) for m in stripped_matches]
+        queue.put(scored_matches)
+    except Exception as e:
+        queue.put(e)
         return
-    stripped_matches = [(m[1].strip(), m[0].strip()) for m in matches]
-    scored_matches = [(Levenshtein2(query, m[0]), m) for m in stripped_matches]
-    queue.put(scored_matches)
 
 def SearchSubtitlesForRelease(release, movie_file):
     queue = Queue.Queue()
@@ -62,8 +69,11 @@ def SearchSubtitlesForRelease(release, movie_file):
         t = threading.Thread(target=__SearchSubtitlesForQuery, args=(query, queue))
         t.daemon = True
         t.start()
-    scored_matches = queue.get()
-    scored_matches.extend(queue.get())
+    thread_results = (queue.get(), queue.get())
+    scored_matches = []
+    for result in thread_results:
+        if isinstance(result, Exception): raise result
+        scored_matches.extend(result)
     scored_matches.sort()
     urls_seen = set()
     subs = []
