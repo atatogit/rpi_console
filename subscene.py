@@ -44,11 +44,11 @@ def GetMovieFiles(torrent_files, release):
     movie_files.sort()
     return [x[1] for x in movie_files]
 
+# Requires: "release" is ASCII.
 def __GetSearchReleaseUrl(release):
-    if type(release) == unicode:
-        release = unicodedata.normalize('NFKD', release).encode('ascii', 'ignore')
     return "http://subscene.com/subtitles/release?q=%s" % urllib.quote(release)
 
+# Requires: "query" is ASCII.
 def __SearchSubtitlesForQuery(query, queue):
     try:
         data = urllib.urlopen(__GetSearchReleaseUrl(query)).read()
@@ -66,6 +66,8 @@ def __SearchSubtitlesForQuery(query, queue):
 def SearchSubtitlesForRelease(release, movie_file):
     queue = Queue.Queue()
     for query in (release, movie_file):
+        if type(query) == unicode:
+            query = unicodedata.normalize('NFKD', query).encode('ascii', 'ignore')
         t = threading.Thread(target=__SearchSubtitlesForQuery, args=(query, queue))
         t.daemon = True
         t.start()
