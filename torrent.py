@@ -21,6 +21,9 @@ def __BytesToHuman(num):
     
 def PushLink(link):
     __rtorrent.load_start_verbose(link)
+
+def DeleteTorrent(torrent_hash):
+    __rtorrent.d.erase(torrent_hash)
     
 def GetDownloadListHtml():
     data = __rtorrent.d.multicall(
@@ -39,10 +42,16 @@ def GetDownloadListHtml():
         done = HtmlEscape("%d%%" % ((100 * d[4]) / d[3] if d[3] else 0))
         down_rate = "%d" % (d[5] / 1024)
         up_rate = "%d" % (d[6] / 1024)
-        html.append("<tr>")
+        html.append("<tr><td>")
         html.append("""\
-<td><div>%s</div> <a class="rtorrent_table_link" href="subs?h=%s">Subs</a></td>
-""" % (name, torrent_hash))
+<span style="float:left">%s</span>
+<form action="/rtorrent" method="get" onsubmit="return confirm('Are you sure you want to delete\\n%s?')">
+<input type="submit" style="float:right" value="Delete">
+<input type="hidden" name="h" value="%s">
+<input type="hidden" name="delete" value="1">
+</form>
+<div style="clear:both"><a class="rtorrent_table_link" href="subs?h=%s">Subs</a></div></td>
+""" % (name, name, torrent_hash, torrent_hash))
         for c in (state, size, done, down_rate, up_rate):
             html.append("<td>%s</td>" % c)
         html.append("</tr>")

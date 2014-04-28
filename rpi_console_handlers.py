@@ -30,6 +30,8 @@ ACTION_TOLERANCE_SECS = 60
 
 WAIT_TORRENT_PUSH_SECS = 1.0
 
+WAIT_TORRENT_DELETE_SECS = 0.5
+
 DOWNLOADS_DIR = "/mnt/wdtv/downloads/"
 
 def GetOutputCmd(name="unknown", *args):
@@ -144,16 +146,24 @@ def TorrentHandler(parsed_path):
     params = urlparse.parse_qs(parsed_path.query)
     link = ExtractParamValue(params, "link")
     success = ExtractParamValue(params, "success")
+    torrent_hash = ExtractParamValue(params, "h")
+    delete_torrent = ExtractParamValue(params, "delete")
     try:
         if link is not None:
             torrent.PushLink(link)
             time.sleep(WAIT_TORRENT_PUSH_SECS)
             return 200, """<html><head>\
 <meta http-equiv="refresh" content="0;url=rtorrent?success=1" /></head></html>"""
-        elif success == "1":
+        if torrent_hash is not None and delete_torrent == "1":
+            torrent.DeleteTorrent(torrent_hash)
+            time.sleep(WAIT_TORRENT_DELETE_SECS)
+            return 200, """<html><head>\
+<meta http-equiv="refresh" content="0;url=rtorrent" /></head></html>"""
+        if success == "1":
             html.append("""\
 Successfully pushed requested link. Note that there are no guarantees that
 rTorrent picked up the link, so you must check that everything is fine.<br>""")
+
         html.append(torrent.GetDownloadListHtml())
 
     except Exception as e:
