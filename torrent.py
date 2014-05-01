@@ -82,5 +82,6 @@ def GetTorrentFiles(torrent_hash):
     
 
 if __name__ == "__main__":
-    print GetTorrentFiles("611BF69A7825FBDD0F5129D8CE976443E75EE530")
+    #PushLink("http://re.zoink.it/2684774066")
+    #print GetTorrentFiles("611BF69A7825FBDD0F5129D8CE976443E75EE530")
     pass
