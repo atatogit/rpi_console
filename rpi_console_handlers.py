@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
-import subprocess
+import datetime
 import os
+import subprocess
 import sys
 import time
 import urlparse
@@ -9,6 +10,7 @@ import urlparse
 from html_utils import HtmlEscape
 import subscene
 import torrent
+import torrent_logs
 
 HTML_HEADER = """\
 <html><head><title>Raspi Console</title>
@@ -142,7 +144,8 @@ Oops. There has been an error. Please check below for the nature of the problem:
 <br><PRE>%s</PRE><br>""" % HtmlEscape(str(e))
     
 def TorrentHandler(parsed_path):
-    html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Download List</h1>"]
+    html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Download List</h1>",
+            "<a href='/rtorrentlogs?list=1'>Go to history</a>"]
     params = urlparse.parse_qs(parsed_path.query)
     link = ExtractParamValue(params, "link")
     success = ExtractParamValue(params, "success")
@@ -171,6 +174,65 @@ rTorrent picked up the link, so you must check that everything is fine.<br>""")
 
     html.append(HTML_TAIL)
     return 200, "\n".join(html)
+
+def __TimestampToHuman(ts):
+  return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+
+def GetTorrentLogsList(torrent_hash, name_query):
+    html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Download History</h1>"]
+    html.append("""\
+<form action="/rtorrentlogs" method="get">
+Name: <input type="text" name="name_query" value="%s">
+<input type="image" src="magnifier.png" style="vertical-align:middle"
+       width="24px" height="24px"> 
+<input type="hidden" name="list" value="1">
+""" % (HtmlEscape(name_query) if name_query else ""))
+    html.append('<table class="rtorrent_download_table"><tr>')
+    columns = ["Name", "Download", "Download Time (secs)", "Subtitles"]
+    for c in columns: html.append("<th>%s</th>" % c)
+    html.append("</tr>")
+    data = torrent_logs.GetTorrentsLogTable(name_query=name_query)
+    for d in data:
+        torrent_hash = HtmlEscape(d[0])
+        name = HtmlEscape(d[1] or 'Unknown')
+        download_start = HtmlEscape(__TimestampToHuman(d[2])) if d[2] else "None"
+        duration = ("%d" % d[3]) if d[3] is not None else "Incomplete"
+        subtitles_date = HtmlEscape(__TimestampToHuman(d[4])) if d[4] else "None"
+        html.append("<tr>")
+        for c in (name, download_start, duration, subtitles_date):
+            html.append("<td>%s</td>" % c)
+        html.append("</tr>")
+    html.append("</table>")
+    if not data: html.append("No torrents found.")
+
+    html.append(HTML_TAIL)
+    return 200, "\n".join(html)
+
+def TorrentLogsHandler(parsed_path):
+    params = urlparse.parse_qs(parsed_path.query)
+    torrent_hash = ExtractParamValue(params, "h")
+    list_param = ExtractParamValue(params, "list")
+    if list_param == '1':
+        name_query = ExtractParamValue(params, "name_query")
+        return GetTorrentLogsList(torrent_hash, name_query)
+
+    event_type = ExtractParamValue(params, "type")
+    if event_type is None or torrent_hash is None:
+        return 400, "Missing event type or torrent hash"
+    
+    if event_type == "insert":
+        name = ExtractParamValue(params, "name")
+        if name is None or name == torrent_hash + ".meta":
+            return 200, "No name, just ignored"
+        torrent_logs.AddTorrent(torrent_hash, name)
+        torrent_logs.AddTorrentEvent(
+            torrent_logs.EventType.download_start, torrent_hash)
+        return 200, "Torrent added"
+    elif event_type == "finished":
+        torrent_logs.AddTorrentEvent(
+            torrent_logs.EventType.download_finish, torrent_hash)
+        return 200, "Torrent finish event logged."
+    return 400, "Unsuported event type"
 
 def SearchSubsHandler(torrent_hash, name, html, max_num_subs_or_none=None):
     release = subscene.TorrentNameToRelease(name)
@@ -207,7 +269,7 @@ def SearchSubsHandler(torrent_hash, name, html, max_num_subs_or_none=None):
             HtmlEscape(torrent_hash), HtmlEscape(movie_file)))
     html.append("</form></div>")
 
-def DownloadSubHandler(sub_url, movie_file, html):
+def DownloadSubHandler(torrent_hash, sub_url, movie_file, html):
     if len(movie_file) < 5 or movie_file[-4] != '.':
         html.append("Bad movie file (not a movie?): " % HtmlEscape(movie_file))
         return
@@ -223,6 +285,9 @@ def DownloadSubHandler(sub_url, movie_file, html):
     f = open(sub_file, "w")
     f.write(sub_data)
     f.close()
+    log_data = { "sub_url": sub_url }
+    torrent_logs.AddTorrentEvent(
+        torrent_logs.EventType.subtitles, torrent_hash, log_data)
     html.append("Successfully written %s." % HtmlEscape(sub_file))
 
 def SubsHandler(parsed_path):
@@ -250,7 +315,7 @@ def SubsHandler(parsed_path):
             if not movie_file:
                 html.append("No movie file specified.")
             else:
-                DownloadSubHandler(sub_url, movie_file, html)
+                DownloadSubHandler(torrent_hash, sub_url, movie_file, html)
 
     except Exception as e:
         html.append(__ExceptionToHtml(e))

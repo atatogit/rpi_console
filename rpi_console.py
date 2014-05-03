@@ -10,6 +10,7 @@ from rpi_console_handlers import SysActionHandler
 from rpi_console_handlers import SysActionMenuHandler
 from rpi_console_handlers import SysConsoleHandler
 from rpi_console_handlers import TorrentHandler
+from rpi_console_handlers import TorrentLogsHandler
 from rpi_console_handlers import SubsHandler
 
 PORT = 8080
@@ -26,6 +27,7 @@ if __name__ == "__main__":
       "/sysactmenu": SysActionMenuHandler, 
       "/sysact": SysActionHandler,
       "/rtorrent": TorrentHandler,
+      "/rtorrentlogs": TorrentLogsHandler,
       "/subs": SubsHandler})
   httpd = SocketServer.TCPServer(("", port), http_handler_class)
 

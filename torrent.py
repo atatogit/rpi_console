@@ -5,6 +5,7 @@ from rtorrent_xmlrpc import SCGIServerProxy
 import xmlrpclib
 
 from html_utils import HtmlEscape
+import torrent_logs
 
 __STATES = ("CLOSED", "STARTED")
 
@@ -31,7 +32,8 @@ def GetDownloadListHtml():
         "d.get_hash=", "d.get_name=", "d.get_state=", "d.get_size_bytes=",
         "d.get_bytes_done=", "d.get_down_rate=", "d.get_up_rate=")
     html = ['<table class="rtorrent_download_table"><tr>']
-    columns = ["Name", "State", "Size", "Done", "Down (Kb/sec)", "Up (Kb/sec)"]
+    columns = ["Name", "State", "Size", "Done", "Down (Kb/sec)", "Up (Kb/sec)",
+               "Subtitles"]
     for c in columns: html.append("<th>%s</th>" % c)
     html.append("</tr>")
     for d in data:
@@ -42,6 +44,7 @@ def GetDownloadListHtml():
         done = HtmlEscape("%d%%" % ((100 * d[4]) / d[3] if d[3] else 0))
         down_rate = "%d" % (d[5] / 1024)
         up_rate = "%d" % (d[6] / 1024)
+        subtitles = "Done" if torrent_logs.HasSubtitles(d[0]) else "Missing"
         html.append("<tr><td>")
         html.append("""\
 <span style="float:left">%s</span>
@@ -54,10 +57,11 @@ def GetDownloadListHtml():
 <div style="clear:both">
 <a class="rtorrent_table_link" href="subs?h=%s">Subs</a></div></td>
 """ % (name, name, torrent_hash, torrent_hash))
-        for c in (state, size, done, down_rate, up_rate):
+        for c in (state, size, done, down_rate, up_rate, subtitles):
             html.append("<td>%s</td>" % c)
         html.append("</tr>")
     html.append("</table>")
+    if not data: html.append("No torrents found.")
     return "\n".join(html)
 
 def __BuildExecuteMethodOrNone(method):
