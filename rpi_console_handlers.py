@@ -16,6 +16,7 @@ HTML_HEADER = """\
 <html><head><title>Raspi Console</title>
 <link rel='stylesheet' href='style.css' />
 <link rel='icon' href='favicon.ico?v=2' type='image/x-icon' />
+<meta charset="UTF-8">
 </head><body>"""
 
 HTML_TAIL = "</body></html>"
@@ -83,7 +84,11 @@ def ExecuteRestart():
 def ExtractParamValue(params, name):
     values = params.get(name, [])
     if not values: return None
-    return values[0]
+    try:
+        value = str(values[0].decode('ascii'))
+    except:
+        value = values[0].decode('utf-8')
+    return value
 
 def ExecuteSystemActionAndGetHtml(params):
     try:
@@ -163,9 +168,8 @@ def TorrentHandler(parsed_path):
             return 200, """<html><head>\
 <meta http-equiv="refresh" content="0;url=rtorrent" /></head></html>"""
         if success == "1":
-            html.append("""\
-Successfully pushed requested link. Note that there are no guarantees that
-rTorrent picked up the link, so you must check that everything is fine.<br>""")
+            # Consider presenting some confirmation message.
+            pass
 
         html.append(torrent.GetDownloadListHtml())
 
