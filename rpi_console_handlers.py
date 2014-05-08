@@ -11,6 +11,7 @@ from html_utils import HtmlEscape
 import subscene
 import torrent
 import torrent_logs
+import utils
 
 HTML_HEADER = """\
 <html><head><title>Raspi Console</title>
@@ -192,7 +193,7 @@ Name: <input type="text" name="name_query" value="%s">
 <input type="hidden" name="list" value="1">
 """ % (HtmlEscape(name_query) if name_query else ""))
     html.append('<table class="rtorrent_download_table"><tr>')
-    columns = ["Name", "Download", "Download Time (secs)", "Subtitles"]
+    columns = ["Name", "Download", "Download Time", "Subtitles"]
     for c in columns: html.append("<th>%s</th>" % c)
     html.append("</tr>")
     data = torrent_logs.GetTorrentsLogTable(name_query=name_query)
@@ -200,7 +201,7 @@ Name: <input type="text" name="name_query" value="%s">
         torrent_hash = HtmlEscape(d[0])
         name = HtmlEscape(d[1] or 'Unknown')
         download_start = HtmlEscape(__TimestampToHuman(d[2])) if d[2] else "None"
-        duration = ("%d" % d[3]) if d[3] is not None else "Incomplete"
+        duration = utils.SecsToHuman(d[3]) if d[3] is not None else "Incomplete"
         subtitles_date = HtmlEscape(__TimestampToHuman(d[4])) if d[4] else "None"
         html.append("<tr>")
         for c in (name, download_start, duration, subtitles_date):

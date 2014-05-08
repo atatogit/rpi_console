@@ -6,6 +6,7 @@ import xmlrpclib
 
 from html_utils import HtmlEscape
 import torrent_logs
+import utils
 
 __STATES = ("CLOSED", "STARTED")
 
@@ -13,13 +14,6 @@ __rtorrent = SCGIServerProxy('scgi:///home/seba/rtorrent_session/socket')
 
 __download_dir = "/mnt/big/rtorrent_downloads"
 
-def __BytesToHuman(num):
-    for x in ['bytes','KB','MB','GB']:
-        if num < 1024.0 and num > -1024.0:
-            return "%3.1f%s" % (num, x)
-        num /= 1024.0
-    return "%3.1f%s" % (num, 'TB')
-    
 def PushLink(link):
     __rtorrent.load_start_verbose(link)
 
@@ -40,7 +34,7 @@ def GetDownloadListHtml():
         torrent_hash = HtmlEscape(d[0])
         name = HtmlEscape(d[1])
         state = __STATES[d[2]]
-        size = HtmlEscape(__BytesToHuman(d[3]))
+        size = HtmlEscape(utils.BytesToHuman(d[3]))
         done = HtmlEscape("%d%%" % ((100 * d[4]) / d[3] if d[3] else 0))
         down_rate = "%d" % (d[5] / 1024)
         up_rate = "%d" % (d[6] / 1024)
