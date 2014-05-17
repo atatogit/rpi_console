@@ -1,0 +1,84 @@
+/* CREATE USER 'nobody'@'localhost' IDENTIFIED BY 'nobody'; */
+
+/* CREATE DATABASE IF NOT EXISTS router; */
+
+/* GRANT SELECT ON router.* to nobody@localhost identified by 'nobody'; */
+
+/*
+CREATE TABLE IF NOT EXISTS router.devices (
+  mac VARCHAR(17),
+  last_hostname VARCHAR(100),
+  last_ip INT UNSIGNED,
+  last_activity INT UNSIGNED,
+  PRIMARY KEY(mac)
+);
+
+CREATE TABLE IF NOT EXISTS router.knowndevices (
+  mac VARCHAR(17),
+  name VARCHAR(100),
+  PRIMARY KEY(mac)
+);
+*/
+
+/*
+INSERT INTO router.knowndevices (mac, name) VALUES
+  ('00:24:d7:46:c1:b0', 'oliveira'),
+  ('10:40:f3:ac:01:a2', 'zarina'),
+  ('00:90:a9:cf:59:be', 'WDTV Live Hub'),
+  ('b8:27:eb:d2:6b:68', 'raspi'),
+  ('40:b0:fa:83:12:d4', 'Tamagoshi Seba'),
+  ('8c:3a:e3:72:09:b0', 'Tamagoshi Romi'),
+  ('10:bf:48:c0:6a:31', 'Tamagoshi padre');
+*/
+
+DROP TRIGGER IF EXISTS rsyslogmysql.device_trigger;
+delimiter $$
+CREATE TRIGGER rsyslogmysql.device_trigger 
+       AFTER INSERT ON rsyslogmysql.SystemEvents
+FOR EACH ROW 
+BEGIN
+  DECLARE newdhcptype TEXT DEFAULT NULL;
+  DECLARE newmac TEXT DEFAULT NULL;
+  DECLARE newip TEXT DEFAULT NULL;
+  DECLARE newhostname TEXT DEFAULT NULL;
+
+  IF NEW.SysLogTag LIKE 'dnsmasq-dhcp%' THEN
+    SET newdhcptype = 
+      substring_index(substring_index(NEW.Message, ' ', 2), ' ', -1);
+
+    IF newdhcptype LIKE 'DHCPREQUEST%' OR 
+       newdhcptype LIKE 'DHCPACK%' THEN
+
+      SET newmac = 
+        substring_index(substring_index(NEW.Message, ' ', 4), ' ', -1);
+
+      IF NULLIF(newmac, '') IS NOT NULL THEN
+
+        IF NOT (SELECT EXISTS(SELECT 1 FROM router.devices 
+                              WHERE mac = newmac)) THEN
+          INSERT INTO router.devices (mac) VALUES (newmac);
+        END IF;
+
+        UPDATE router.devices SET last_activity = UNIX_TIMESTAMP() 
+                              WHERE mac = newmac;
+
+        IF newdhcptype LIKE 'DHCPACK%' THEN 
+          SET newip =
+            substring_index(substring_index(NEW.Message, ' ', 3), ' ', -1);
+          SET newhostname =
+            substring_index(substring_index(NEW.Message, ' ', 5), ' ', -1);
+        END IF;
+
+        IF NULLIF(newip, '') IS NOT NULL THEN
+          UPDATE router.devices SET last_ip = INET_ATON(newip) WHERE mac = newmac;
+        END IF;
+
+        IF NULLIF(newhostname, '') IS NOT NULL THEN
+          UPDATE router.devices SET last_hostname = newhostname
+                                WHERE mac = newmac;
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+END;$$
+delimiter ;
