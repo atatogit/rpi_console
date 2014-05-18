@@ -41,6 +41,7 @@ BEGIN
   DECLARE newmac TEXT DEFAULT NULL;
   DECLARE newip TEXT DEFAULT NULL;
   DECLARE newhostname TEXT DEFAULT NULL;
+  DECLARE exeret INT DEFAULT 0;
 
   IF NEW.SysLogTag LIKE 'dnsmasq-dhcp%' THEN
     SET newdhcptype = 
@@ -50,7 +51,7 @@ BEGIN
        newdhcptype LIKE 'DHCPACK%' THEN
 
       SET newmac = 
-        substring_index(substring_index(NEW.Message, ' ', 4), ' ', -1);
+        lower(substring_index(substring_index(NEW.Message, ' ', 4), ' ', -1));
 
       IF NULLIF(newmac, '') IS NOT NULL THEN
 
@@ -67,6 +68,13 @@ BEGIN
             substring_index(substring_index(NEW.Message, ' ', 3), ' ', -1);
           SET newhostname =
             substring_index(substring_index(NEW.Message, ' ', 5), ' ', -1);
+          IF NOT (SELECT EXISTS(SELECT 1 FROM router.knowndevices 
+                                WHERE mac = newmac)) THEN
+            SET exeret = sys_exec(CONCAT(
+              "/bin/bash -c 'echo New device detected: \"", 
+              newmac, 
+              "\" | /usr/bin/mail -s WARNING spueblas@gmail.com'&"));
+          END IF;
         END IF;
 
         IF NULLIF(newip, '') IS NOT NULL THEN

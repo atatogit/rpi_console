@@ -8,6 +8,7 @@ import time
 import urlparse
 
 from html_utils import HtmlEscape
+import router_logs
 import subscene
 import torrent
 import torrent_logs
@@ -25,7 +26,7 @@ HTML_TAIL = "</body></html>"
 HTML_TOC =  """\
 <div class="toc">
 Go to: <a href="/">Console</a>, <a href="/rtorrent">rTorrent List</a>,
-<a href="/sysactmenu">Actions</a>
+<a href="/router">Router</a>, <a href="/sysactmenu">Actions</a>
 </div>"""
 
 HTML_ACTIONS_TITLE = "<h1>Raspi System Action</h1>"
@@ -328,6 +329,39 @@ def SubsHandler(parsed_path):
     html.append(HTML_TAIL)
     return 200, "\n".join(html)
 
+def __GetRouterDevicesTable():
+    html = []
+    html.append('<table class="router_devices_table"><tr>')
+    columns = ["Name", "Hostname", "MAC", "IP", "Last Activity"]
+    for c in columns: html.append("<th>%s</th>" % c)
+    html.append("</tr>")
+    data = router_logs.GetDevicesList()
+    for d in data:
+        name = HtmlEscape(d[0]) if d[0] else \
+            "<span style='color:red'>NEW DEVICE</span>"
+        hostname = HtmlEscape(d[1] or "Unknown")
+        mac = HtmlEscape(d[2])
+        ip = HtmlEscape(d[3] or "Unknown")
+        last_date = HtmlEscape(__TimestampToHuman(d[4])) if d[2] else "Unknown"
+        html.append("<tr>")
+        for c in (name, hostname, mac, ip, last_date):
+            html.append("<td>%s</td>" % c)
+        html.append("</tr>")
+    html.append("</table>")
+    if not data: html.append("No devices found.")
+    return "\n".join(html)
+
+def RouterLogsHandler(parsed_path):
+    html = [HTML_HEADER, HTML_TOC, "<h1>Router Devices</h1>"]
+    try:
+        html.append(__GetRouterDevicesTable())
+
+    except Exception as e:
+        html.append(__ExceptionToHtml(e))
+
+    html.append(HTML_TAIL)
+    return 200, "\n".join(html)
+    
 
 if __name__ == "__main__":
     print SysConsoleHandler("/")
