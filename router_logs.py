@@ -5,6 +5,16 @@ import MySQLdb
 __DB = MySQLdb.connect(
     host="localhost", user="nobody", passwd="nobody", db="router")
 
+def __FetchAll(sql, params):
+    __DB.ping(True)
+    c = __DB.cursor()
+    c.execute("""set session transaction isolation level READ COMMITTED;""")
+    c.fetchall()
+    c.execute(sql, params)
+    results = c.fetchall()
+    c.close()
+    return results
+    
 def GetDevicesList(min_date=None, max_date=None):
     # From http://www.sqlite.org/lang_datefunc.html.
     if min_date is None: min_date = 0
@@ -23,15 +33,7 @@ FROM
 WHERE devices.last_activity BETWEEN %s AND %s
 ORDER BY devices.last_activity DESC, knowndevices.name ASC;"""
 
-    params = (min_date, max_date)
-
-    c = __DB.cursor()
-    c.execute("""set session transaction isolation level READ COMMITTED;""")
-    c.fetchall()
-    c.execute(sql, params)
-    devices = c.fetchall()
-    c.close()
-    return devices
+    return __FetchAll(sql, (min_date, max_date))
 
 if __name__ == "__main__":
     print GetDevicesList()
