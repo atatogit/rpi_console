@@ -25,7 +25,7 @@ __SUB_EXTENSIONS_RE = re.compile("(%s)$" % "|".join(
 
 __SUB_LIST_ENTRY_RE = re.compile(
     'href="(/subtitles/[^/]*/english/[^"]*)"' +
-    '[^<]*<div[^<]*<span[^<]*</span[^<]*<span[^>]*>([^<]*)</span')
+    '[^<]*<span[^<]*</span[^<]*<span[^>]*>([^<]*)</span')
 
 __SUB_DOWNLOAD_LINK_RE = re.compile('href="(/subtitle/download?[^"]*)"')
 
@@ -127,6 +127,7 @@ def DownloadSubtitle(sub_url):
     
 
 if __name__ == "__main__":
-    # print SearchSubtitlesForRelease("Silicon.Valley.S01E01.HDTV.x264-2HD")
+    print SearchSubtitlesForRelease("Halt.and.Catch.Fire.S01E07.HDTV.x264-ASAP",
+                                    "Halt.and.Catch.Fire.S01E07.HDTV.x264-ASAP")
     # DownloadSubtitle("/subtitles/silicon-valley-first-season/english/894763")
     pass
