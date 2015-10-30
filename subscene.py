@@ -31,6 +31,12 @@ __SUB_DOWNLOAD_LINK_RE = re.compile('href="(/subtitle/download?[^"]*)"')
 
 __MAX_NUM_SUBS = 5
 
+__USER_AGENT = ('Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) '
+                'Gecko/20071127 Firefox/2.0.0.11')
+
+url_opener = urllib2.build_opener()
+url_opener.addheaders = [('User-agent', __USER_AGENT)]
+
 def TorrentNameToRelease(name):
     return re.sub(__VID_EXTENSIONS_RE, "", name)
 
@@ -51,7 +57,7 @@ def __GetSearchReleaseUrl(release):
 # Requires: "query" is ASCII.
 def __SearchSubtitlesForQuery(query, queue):
     try:
-        data = urllib.urlopen(__GetSearchReleaseUrl(query)).read()
+        data = url_opener.open(__GetSearchReleaseUrl(query)).read()
         matches = re.findall(__SUB_LIST_ENTRY_RE, data)
         if not matches: 
             queue.put([])
@@ -91,13 +97,14 @@ def GetSubtitleUrl(sub_url):
     return "http://subscene.com/%s" % sub_url.lstrip("/")
 
 def DownloadSubtitle(sub_url):
-    data = urllib.urlopen(GetSubtitleUrl(sub_url)).read()
+    data = url_opener.open(GetSubtitleUrl(sub_url)).read()
     matches = re.findall(__SUB_DOWNLOAD_LINK_RE, data)
     if len(matches) != 1:
         raise RuntimeError("Failed parsing subtitle html page.")
     sub_data_url = matches[0]
 
     request = urllib2.Request(GetSubtitleUrl(sub_data_url))
+    request.add_header('User-agent', __USER_AGENT)
     request.add_header('Accept-encoding', 'gzip')
     response = urllib2.urlopen(request)
     if response.info().get('Content-Encoding') == 'gzip':
