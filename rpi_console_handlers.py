@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import time
+import urllib
 import urlparse
 
 from html_utils import HtmlEscape
@@ -240,7 +241,8 @@ def TorrentLogsHandler(parsed_path):
         return 200, "Torrent finish event logged."
     return 400, "Unsuported event type"
 
-def SearchSubsHandler(torrent_hash, name, html, max_num_subs_or_none=None):
+def SearchSubsHandler(
+    params, torrent_hash, name, html, max_num_subs_or_none=None):
     release = subscene.TorrentNameToRelease(name)
     html.append("<div><b>Release:</b> %s</div>" % HtmlEscape(release))
     movie_files = subscene.GetMovieFiles(
@@ -268,13 +270,20 @@ def SearchSubsHandler(torrent_hash, name, html, max_num_subs_or_none=None):
                 esc_url, "checked" if i == 0 else "",
                 esc_name, score,
                 esc_full_url))
-                     
     html.append("""\
 <input type='submit' value='Download selected subtitle'>
 <input type='hidden' name='h' value='%s'>
 <input type='hidden' name='moviefile' value='%s'>""" % (
             HtmlEscape(torrent_hash), HtmlEscape(movie_file)))
     html.append("</form></div>")
+    max_num_subs = params.get("max_num_subs", [-1])
+    if not max_num_subs or max_num_subs[0] < 1000:
+        new_params = params.copy()
+        new_params["max_num_subs"] = [1000]
+        more_subs_url = "?%s" % urllib.urlencode(new_params, doseq=True)
+        html.append(
+            "<div><a href='%s'>Try to retrieve more subtitles</a></div>" %
+            more_subs_url)
 
 def DownloadSubHandler(torrent_hash, sub_url, movie_file, html):
     if len(movie_file) < 5 or movie_file[-4] != '.':
@@ -316,7 +325,7 @@ def SubsHandler(parsed_path):
         if not sub_url:
             max_num_subs = ExtractParamValue(params, "max_num_subs")
             if max_num_subs is not None: max_num_subs = int(max_num_subs)
-            SearchSubsHandler(torrent_hash, name, html, max_num_subs)
+            SearchSubsHandler(params, torrent_hash, name, html, max_num_subs)
         else:
             movie_file = ExtractParamValue(params, "moviefile")
             if not movie_file:
