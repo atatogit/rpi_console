@@ -11,7 +11,7 @@ import urllib
 import urllib2
 import zipfile
 
-from levenshtein import Levenshtein2
+from levenshtein import Levenshtein2, levenshtein
 
 __VID_EXTENSIONS = set((".avi", ".mpg", ".mp4", ".mkv"))
 
@@ -54,6 +54,18 @@ def GetMovieFiles(torrent_files, release):
 def __GetSearchReleaseUrl(release):
     return "http://subscene.com/subtitles/release?q=%s" % urllib.quote(release)
 
+def __NormalizeForMatchScore(s):
+    normalized = s.replace(" ", ".").lower()
+    normalized = normalized.replace("[ettv]", "")
+    return normalized
+
+def __ScoreSubtitleMatch(query, sub_name):
+    normalized_query = __NormalizeForMatchScore(query)
+    normalized_sub_name = __NormalizeForMatchScore(sub_name)
+    return levenshtein(normalized_query, normalized_sub_name)
+
+# Searches "query" in subscene, parses out subtitles, and puts them scored into
+# "queue".
 # Requires: "query" is ASCII.
 def __SearchSubtitlesForQuery(query, queue):
     try:
@@ -63,7 +75,8 @@ def __SearchSubtitlesForQuery(query, queue):
             queue.put([])
             return
         stripped_matches = [(m[1].strip(), m[0].strip()) for m in matches]
-        scored_matches = [(Levenshtein2(query, m[0]), m) for m in stripped_matches]
+        scored_matches = [(__ScoreSubtitleMatch(query, m[0]), m)
+                          for m in stripped_matches]
         queue.put(scored_matches)
     except Exception as e:
         queue.put(e)
@@ -89,7 +102,7 @@ def SearchSubtitlesForRelease(release, movie_file, max_num_subs=None):
     for score, (name, url) in scored_matches:
         if len(subs) >= max_num_subs: break
         if url in urls_seen: continue
-        subs.append((name, url))
+        subs.append((name, url, score))
         urls_seen.add(url)
     return subs
 
