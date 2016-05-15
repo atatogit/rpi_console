@@ -73,3 +73,7 @@ table.router_devices_table td:nth-child(2) {
 a.rtorrent_table_link {
     font-size: 12px;
 }
+
+div.rtorrent_history_link {
+    margin-bottom: 10px;
+}

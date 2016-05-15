@@ -153,10 +153,10 @@ Oops. There has been an error. Please check below for the nature of the problem:
     
 def TorrentHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Download List</h1>",
-            "<a href='/rtorrentlogs?list=1'>Go to history</a>"]
+            "<div class='rtorrent_history_link'><a "
+            "href='/rtorrentlogs?list=1'>Go to history</a></div>"]
     params = urlparse.parse_qs(parsed_path.query)
     link = ExtractParamValue(params, "link")
-    success = ExtractParamValue(params, "success")
     torrent_hash = ExtractParamValue(params, "h")
     delete_torrent = ExtractParamValue(params, "delete")
     try:
@@ -164,16 +164,20 @@ def TorrentHandler(parsed_path):
             torrent.PushLink(link)
             time.sleep(WAIT_TORRENT_PUSH_SECS)
             return 200, """<html><head>\
-<meta http-equiv="refresh" content="0;url=rtorrent?success=1" /></head></html>"""
+<meta http-equiv="refresh" content="0;url=rtorrent" /></head></html>"""
         if torrent_hash is not None and delete_torrent == "1":
             torrent.DeleteTorrent(torrent_hash)
             time.sleep(WAIT_TORRENT_DELETE_SECS)
             return 200, """<html><head>\
 <meta http-equiv="refresh" content="0;url=rtorrent" /></head></html>"""
-        if success == "1":
-            # Consider presenting some confirmation message.
-            pass
 
+        html.append("""\
+<div>
+<form action="/rtorrent" method="get">
+<input type="text" name="link" value="">
+<input type="submit" value="Add torrent">
+</form>
+</div>""")
         html.append(torrent.GetDownloadListHtml())
 
     except Exception as e:
