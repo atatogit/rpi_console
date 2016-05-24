@@ -31,6 +31,8 @@ __SUB_DOWNLOAD_LINK_RE = re.compile('href="(/subtitle/download?[^"]*)"')
 
 __MAX_NUM_SUBS = 5
 
+__REMOVABLE_STRINGS = set(("[ettv]", "[eztv]"))
+
 __USER_AGENT = ('Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) '
                 'Gecko/20071127 Firefox/2.0.0.11')
 
@@ -56,7 +58,8 @@ def __GetSearchReleaseUrl(release):
 
 def __NormalizeForMatchScore(s):
     normalized = s.replace(" ", ".").lower()
-    normalized = normalized.replace("[ettv]", "")
+    for to_remove in __REMOVABLE_STRINGS:
+        normalized = normalized.replace(to_remove, "")
     return normalized
 
 def __ScoreSubtitleMatch(query, sub_name):
