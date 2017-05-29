@@ -72,7 +72,9 @@ def __ScoreSubtitleMatch(query, sub_name):
 # Requires: "query" is ASCII.
 def __SearchSubtitlesForQuery(query, queue):
     try:
+        print "Opening: ", __GetSearchReleaseUrl(query)
         data = url_opener.open(__GetSearchReleaseUrl(query)).read()
+        print "done."
         matches = re.findall(__SUB_LIST_ENTRY_RE, data)
         if not matches: 
             queue.put([])
@@ -91,9 +93,13 @@ def SearchSubtitlesForRelease(release, movie_file, max_num_subs=None):
     for query in (release, movie_file):
         if type(query) == unicode:
             query = unicodedata.normalize('NFKD', query).encode('ascii', 'ignore')
-        t = threading.Thread(target=__SearchSubtitlesForQuery, args=(query, queue))
-        t.daemon = True
-        t.start()
+        # It seems multiple concurrent queries are rejected with error 409 :-(
+        if True:
+            __SearchSubtitlesForQuery(query, queue)
+        else:
+            t = threading.Thread(target=__SearchSubtitlesForQuery, args=(query, queue))
+            t.daemon = True
+            t.start()
     thread_results = (queue.get(), queue.get())
     scored_matches = []
     for result in thread_results:
