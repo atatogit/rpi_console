@@ -2,7 +2,9 @@
 
 /* CREATE DATABASE IF NOT EXISTS sensors; */
 
-/* GRANT SELECT ON router.* to nobody@localhost identified by 'nobody'; */
+/* GRANT SELECT ON sensors.* to nobody@localhost identified by 'nobody'; */
+
+/* GRANT INSERT ON sensors.* to nobody@localhost identified by 'nobody'; */
 
 /*
 CREATE TABLE IF NOT EXISTS sensors.dht22readings (
