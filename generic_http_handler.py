@@ -28,4 +28,4 @@ class SimpleGenericHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
     self.send_response(code)
     self.send_header("Content-type", "text/html")
     self.end_headers()
-    if return_content and code == 200: self.wfile.write(html_data)
+    if return_content: self.wfile.write(html_data)
