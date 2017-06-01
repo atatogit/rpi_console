@@ -13,6 +13,7 @@ import router_logs
 import subscene
 import torrent
 import torrent_logs
+import sensors_logs
 import utils
 
 HTML_HEADER = """\
@@ -377,6 +378,44 @@ def RouterLogsHandler(parsed_path):
     return 200, "\n".join(html)
     
 
+def SensorsHandler(parsed_path):
+    params = urlparse.parse_qs(parsed_path.query)
+    sensor_type = ExtractParamValue(params, "type")
+    if sensor_type is None:
+        return 400, "'type' must be provided"
+    if sensor_type.lower() != "dht22":
+        return 501, "Unsuported sensor type (only dht22 is supported)"
+    try:
+        sensor_id = int(ExtractParamValue(params, "id"))
+        if sensor_id <= 0:
+            return 400, "id must be larger than zero"
+    except:
+        return 400, "'id' must be an integer larger than zero"
+    try:
+        ts_secs = int(ExtractParamValue(params, "ts"))
+        if ts_secs < 0:
+            return 400, "'ts' must not be negative"
+    except:
+        return 400, "'ts' must be a valid timestamp"
+    try:
+        temp_c = float(ExtractParamValue(params, "temp_c"))
+    except:
+        return 400, "'temp_c' must be a valid temperature"
+    try:
+        humidity_perc = float(ExtractParamValue(params, "hum_perc"))
+    except:
+        return 400, "'hum_perc' must be a valid percentual humidity"
+    try:
+        sensors_logs.InsertDHT22Reading(
+            sensor_id, ts_secs, temperature_c=temp_c, humidity_perc=humidity_perc)
+    except Exception as e:
+        html.append(__ExceptionToHtml(e))
+
+    return 200, "OK"
+
+
 if __name__ == "__main__":
-    print SysConsoleHandler("/")
-    print SysActionMenuHandler("/sysactmenu")
+    print SysConsoleHandler(urlparse.urlparse("/"))
+    #print SysActionMenuHandler(urlparse.urlparse("/sysactmenu"))
+    #print SensorsHandler(
+    #    urlparse.urlparse("/sensors?type=dht22&id=1&ts=100&temp_c=25.3&hum_perc=40.1"))

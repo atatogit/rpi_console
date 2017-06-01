@@ -13,6 +13,7 @@ from rpi_console_handlers import TorrentHandler
 from rpi_console_handlers import TorrentLogsHandler
 from rpi_console_handlers import SubsHandler
 from rpi_console_handlers import RouterLogsHandler
+from rpi_console_handlers import SensorsHandler
 
 PORT = 8080
 
@@ -30,7 +31,8 @@ if __name__ == "__main__":
       "/rtorrent": TorrentHandler,
       "/rtorrentlogs": TorrentLogsHandler,
       "/subs": SubsHandler,
-      "/router": RouterLogsHandler })
+      "/router": RouterLogsHandler,
+      "/sensors": SensorsHandler })
   httpd = SocketServer.TCPServer(("", port), http_handler_class)
 
   os.chdir("resources")
