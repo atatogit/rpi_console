@@ -28,7 +28,8 @@ HTML_TAIL = "</body></html>"
 HTML_TOC =  """\
 <div class="toc">
 Go to: <a href="/">Console</a>, <a href="/rtorrent">rTorrent List</a>,
-<a href="/router">Router</a>, <a href="/sysactmenu">Actions</a>
+<a href="/router">Router</a>, <a href="/sysactmenu">Actions</a>,
+<a href="/viewsensors">Sensors</a>
 </div>"""
 
 HTML_ACTIONS_TITLE = "<h1>Raspi System Action</h1>"
@@ -41,6 +42,7 @@ WAIT_TORRENT_DELETE_SECS = 0.5
 
 DOWNLOADS_DIR = "/mnt/wdtv/downloads/"
 
+
 def GetOutputCmd(name="unknown", *args):
     def f():
         try:
@@ -49,6 +51,7 @@ def GetOutputCmd(name="unknown", *args):
             print >>sys.stdout, "Error getting %s" % name
             return "Error"
     return f
+
 
 def ActionCmd(name="unknown", *args):
     def f():
@@ -60,6 +63,7 @@ def ActionCmd(name="unknown", *args):
         return is_ok
     return f
         
+
 GetDf = GetOutputCmd("df", "/bin/df", "-h")
 GetFreeMem = GetOutputCmd("free", "/usr/bin/free", "-h")
 GetFreeMem = GetOutputCmd("free", "/usr/bin/free", "-h")
@@ -69,6 +73,7 @@ ActionShutdown = ActionCmd(
 ActionRestart = ActionCmd(
     "shutdown", "/usr/local/bin/sudo_shutdown", "-r", "now")
 
+
 def GetTemp():
     try:
         temp = open("/sys/class/thermal/thermal_zone0/temp").read().strip()
@@ -77,13 +82,16 @@ def GetTemp():
         print >>sys.stdout, "Error reading temperature"
         return None
 
+
 def ExecuteShutdown():
     if ActionShutdown(): return "Raspi should be shutting down now!"
     return "Error shutting down raspi."
 
+
 def ExecuteRestart():
     if ActionRestart(): return "Raspi should be restarting now!"
     return "Error restarting raspi."
+
 
 def ExtractParamValue(params, name):
     values = params.get(name, [])
@@ -93,6 +101,7 @@ def ExtractParamValue(params, name):
     except:
         value = values[0].decode('utf-8')
     return value
+
 
 def ExecuteSystemActionAndGetHtml(params):
     try:
@@ -112,12 +121,14 @@ def ExecuteSystemActionAndGetHtml(params):
     else:
         return "Unknown action!"
     
+
 def SysActionHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, HTML_ACTIONS_TITLE, 
             ExecuteSystemActionAndGetHtml(urlparse.parse_qs(parsed_path.query)),
             HTML_TAIL]
     return 200, "\n".join(html)
     
+
 def SysActionMenuHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, HTML_ACTIONS_TITLE, """\
 <form action='/sysact' method='get' 
@@ -133,6 +144,7 @@ necessary, please reload the page.""" % (int(time.time()),
             HTML_TAIL]
     return 200, "\n".join(html)
 
+
 def SysConsoleHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, "<h1>Raspi Console</h1><ul>"]
     temp = GetTemp()
@@ -147,11 +159,13 @@ def SysConsoleHandler(parsed_path):
     html.extend(["</ul>", HTML_TAIL])
     return 200, "\n".join(html)
 
+
 def __ExceptionToHtml(e):
     return """<br><br>\
 Oops. There has been an error. Please check below for the nature of the problem:
 <br><PRE>%s</PRE><br>""" % HtmlEscape(str(e))
     
+
 def TorrentHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Download List</h1>",
             "<div class='rtorrent_history_link'><a "
@@ -187,8 +201,10 @@ def TorrentHandler(parsed_path):
     html.append(HTML_TAIL)
     return 200, "\n".join(html)
 
+
 def __TimestampToHuman(ts):
   return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+
 
 def GetTorrentLogsList(torrent_hash, name_query):
     html = [HTML_HEADER, HTML_TOC, "<h1>rTorrent Download History</h1>"]
@@ -220,6 +236,7 @@ Name: <input type="text" name="name_query" value="%s">
     html.append(HTML_TAIL)
     return 200, "\n".join(html)
 
+
 def TorrentLogsHandler(parsed_path):
     params = urlparse.parse_qs(parsed_path.query)
     torrent_hash = ExtractParamValue(params, "h")
@@ -245,6 +262,7 @@ def TorrentLogsHandler(parsed_path):
             torrent_logs.EventType.download_finish, torrent_hash)
         return 200, "Torrent finish event logged."
     return 400, "Unsuported event type"
+
 
 def SearchSubsHandler(
     params, torrent_hash, name, html, max_num_subs_or_none=None):
@@ -290,6 +308,7 @@ def SearchSubsHandler(
             "<div><a href='%s'>Try to retrieve more subtitles</a></div>" %
             more_subs_url)
 
+
 def DownloadSubHandler(torrent_hash, sub_url, movie_file, html):
     if len(movie_file) < 5 or movie_file[-4] != '.':
         html.append("Bad movie file (not a movie?): " % HtmlEscape(movie_file))
@@ -310,6 +329,7 @@ def DownloadSubHandler(torrent_hash, sub_url, movie_file, html):
     torrent_logs.AddTorrentEvent(
         torrent_logs.EventType.subtitles, torrent_hash, log_data)
     html.append("Successfully written %s." % HtmlEscape(sub_file))
+
 
 def SubsHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, "<h1>Subtitles Manager</h1>"]
@@ -344,6 +364,7 @@ def SubsHandler(parsed_path):
     html.append(HTML_TAIL)
     return 200, "\n".join(html)
 
+
 def __GetRouterDevicesTable():
     html = []
     html.append('<table class="router_devices_table"><tr>')
@@ -365,6 +386,7 @@ def __GetRouterDevicesTable():
     html.append("</table>")
     if not data: html.append("No devices found.")
     return "\n".join(html)
+
 
 def RouterLogsHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, "<h1>Router Devices</h1>"]
@@ -414,8 +436,38 @@ def SensorsHandler(parsed_path):
     return 200, "OK"
 
 
+def __GetLatestSensorsReadingsTable():
+    html = []
+    html.append("<h2>DHT22 Sensors</h2>")
+    html.append('<table class="latest_sensors_table"><tr>')
+    columns = ["ID", "Last Masurement", "Temp (C)", "Humidity (%)"]
+    for c in columns: html.append("<th>%s</th>" % c)
+    html.append("</tr>")
+    data = sensors_logs.GetLatestDHT22Readings()
+    for d in data:
+        device_id = str(d[0])
+        last_date = HtmlEscape(__TimestampToHuman(d[1]))
+        temp = str(d[2])
+        hum = str(d[3])        
+        html.append("<tr>")
+        for c in (device_id, last_date, temp, hum):
+            html.append("<td>%s</td>" % c)
+        html.append("</tr>")
+    html.append("</table>")
+    if not data: html.append("No DHT22 devices found.")
+    return "\n".join(html)
+
+
+def ViewSensorsHandler(parsed_path):
+    html = [HTML_HEADER, HTML_TOC, "<h1>View Sensors</h1>"]
+    html.append(__GetLatestSensorsReadingsTable())
+    html.append(HTML_TAIL)
+    return 200, "\n".join(html)
+
+
 if __name__ == "__main__":
-    print SysConsoleHandler(urlparse.urlparse("/"))
+    #print SysConsoleHandler(urlparse.urlparse("/"))
     #print SysActionMenuHandler(urlparse.urlparse("/sysactmenu"))
     #print SensorsHandler(
     #    urlparse.urlparse("/sensors?type=dht22&id=1&ts=100&temp_c=25.3&hum_perc=40.1"))
+    print ViewSensorsHandler(urlparse.urlparse("/"))
