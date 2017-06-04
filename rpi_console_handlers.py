@@ -467,7 +467,6 @@ def __GetLatestSensorsReadingsTable():
 
 def __GetSensorsReadingsTable(sensor_id, ts_start, ts_end):
     html = []
-    html.append("<h2>DHT22 Sensor: %d </h2>" % sensor_id)
     html.append('<table class="latest_sensors_table"><tr>')
     columns = ["Time", "Temp (C)", "Humidity (%)"]
     for c in columns: html.append("<th>%s</th>" % c)
@@ -540,6 +539,7 @@ def ViewSensorsHandler(parsed_path):
     mode = ExtractParamValue(params, "mode")
     if mode is None or mode.lower() != "graph":
         html = [HTML_HEADER, HTML_TOC, "<h1>View Sensors</h1>"]
+        html.append("<h2>DHT22 Sensor: %d </h2>" % sensor_id)
         html.append(__GetSensorsReadingsTable(sensor_id, ts_start, ts_end))
         html.append(HTML_TAIL)
         return 200, "\n".join(html)
@@ -571,8 +571,9 @@ def ViewSensorsHandler(parsed_path):
   }
 </script>""" % (temp_data_js, hum_data_js)]
     html.extend([HTML_HEADER_END, HTML_TOC, "<h1>View Sensors</h1>"])
-    html.append('<div id="temp_chart" style="width: 900px; height: 500px"></div>')
-    html.append('<div id="hum_chart" style="width: 900px; height: 500px"></div>')
+    html.append("<h2>DHT22 Sensor: %d </h2>" % sensor_id)
+    html.append('<div id="temp_chart" class="widechart"></div>')
+    html.append('<div id="hum_chart" class="widechart"></div>')
     html.append(HTML_TAIL)
     return 200, "\n".join(html)
 

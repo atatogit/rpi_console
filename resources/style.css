@@ -80,3 +80,8 @@ a.rtorrent_table_link {
 div.rtorrent_history_link {
     margin-bottom: 10px;
 }
+
+div.widechart {
+    width: 100%;
+    height: 50%;
+}
