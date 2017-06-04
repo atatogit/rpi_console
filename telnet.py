@@ -5,7 +5,7 @@ import telnetlib
 # Fuck security.
 __HOST = "192.168.1.1"
 __USER = "admin\n"
-__PASS = "Iseuqrom\n"
+__PASS = "PASSWORD\n"
 
 __BEGIN = "#BEGINBEGINBEGIN"
 __END = "#ENDENDEND"
