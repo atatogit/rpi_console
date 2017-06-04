@@ -440,7 +440,7 @@ def __GetLatestSensorsReadingsTable():
     html = []
     html.append("<h2>DHT22 Sensors</h2>")
     html.append('<table class="latest_sensors_table"><tr>')
-    columns = ["ID", "Last Masurement", "Temp (C)", "Humidity (%)"]
+    columns = ["ID", "Last Masurement", "Temp (C)", "Humidity (%)", "History"]
     for c in columns: html.append("<th>%s</th>" % c)
     html.append("</tr>")
     data = sensors_logs.GetLatestDHT22Readings()
@@ -452,15 +452,78 @@ def __GetLatestSensorsReadingsTable():
         html.append("<tr>")
         for c in (device_id, last_date, temp, hum):
             html.append("<td>%s</td>" % c)
+        html.append('<td><a href="/viewsensors?mode=table&type=dht22&'
+                    'id=%s">Table</a> / ' % device_id)
+        html.append('<a href="/viewsensors?mode=graph&type=dht22&'
+                    'id=%s">Graph</a></td>' % device_id)
         html.append("</tr>")
     html.append("</table>")
     if not data: html.append("No DHT22 devices found.")
     return "\n".join(html)
 
 
+def __GetSensorsReadingsTable(sensor_id, ts_start, ts_end):
+    html = []
+    html.append("<h2>DHT22 Sensor: %d </h2>" % sensor_id)
+    html.append('<table class="latest_sensors_table"><tr>')
+    columns = ["Time", "Temp (C)", "Humidity (%)"]
+    for c in columns: html.append("<th>%s</th>" % c)
+    html.append("</tr>")
+    data = sensors_logs.GetDHT22Readings(sensor_id, ts_start, ts_end)
+    for d in reversed(data):
+        date = HtmlEscape(__TimestampToHuman(d[0]))
+        temp = str(d[1])
+        hum = str(d[2])        
+        html.append("<tr>")
+        for c in (date, temp, hum):
+            html.append("<td>%s</td>" % c)
+        html.append("</tr>")
+    html.append("</table>")
+    if not data: html.append("No measurement found.")
+    return "\n".join(html)
+
+
 def ViewSensorsHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, "<h1>View Sensors</h1>"]
-    html.append(__GetLatestSensorsReadingsTable())
+    params = urlparse.parse_qs(parsed_path.query)
+    sensor_type = ExtractParamValue(params, "type")
+    if sensor_type is None:
+        html.append(__GetLatestSensorsReadingsTable())
+        html.append(HTML_TAIL)
+        return 200, "\n".join(html)
+    
+    if sensor_type.lower() != "dht22":
+        return 501, "Unsuported sensor type (only dht22 is supported)"
+    try:
+        sensor_id = int(ExtractParamValue(params, "id"))
+        if sensor_id <= 0:
+            return 400, "id must be larger than zero"
+    except:
+        return 400, "'id' must be an integer larger than zero"
+    ts_end = ExtractParamValue(params, "ts_end")
+    if ts_end is None:
+        ts_end = int(time.time())
+    else:
+        try:
+            ts_end = int(ts_end)
+            if ts_end < 0:
+                return 400, "'ts_end' must not be negative"
+        except:
+            return 400, "'ts_end' must be a valid timestamp"
+    ts_start = ExtractParamValue(params, "ts_start")
+    if ts_start is None:
+        ts_start = ts_end - 3600 * 24
+    else:
+        try:
+            ts_start = int(ts_start)
+            if ts_start < 0:
+                return 400, "'ts_start' must not be negative"
+            if ts_start > ts_end:
+                return 400, "'ts_start' must precede 'ts_end'"
+        except:
+            return 400, "'ts_start' must be a valid timestamp"
+
+    html.append(__GetSensorsReadingsTable(sensor_id, ts_start, ts_end))
     html.append(HTML_TAIL)
     return 200, "\n".join(html)
 
@@ -470,4 +533,5 @@ if __name__ == "__main__":
     #print SysActionMenuHandler(urlparse.urlparse("/sysactmenu"))
     #print SensorsHandler(
     #    urlparse.urlparse("/sensors?type=dht22&id=1&ts=100&temp_c=25.3&hum_perc=40.1"))
-    print ViewSensorsHandler(urlparse.urlparse("/"))
+    #print ViewSensorsHandler(urlparse.urlparse("/"))
+    print ViewSensorsHandler(urlparse.urlparse("/viewsensors?type=dht22&id=100"))
