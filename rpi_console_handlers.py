@@ -16,12 +16,15 @@ import torrent_logs
 import sensors_logs
 import utils
 
-HTML_HEADER = """\
+HTML_HEADER_BEGIN = """\
 <html><head><title>Raspi Console</title>
 <link rel='stylesheet' href='style.css' />
 <link rel='icon' href='favicon.ico?v=2' type='image/x-icon' />
-<meta charset="UTF-8">
-</head><body>"""
+<meta charset="UTF-8">"""
+
+HTML_HEADER_END = "</head><body>"
+
+HTML_HEADER = HTML_HEADER_BEGIN + HTML_HEADER_END
 
 HTML_TAIL = "</body></html>"
 
@@ -483,11 +486,22 @@ def __GetSensorsReadingsTable(sensor_id, ts_start, ts_end):
     return "\n".join(html)
 
 
+def __GetSensorsReadingsGraphData(sensor_id, ts_start, ts_end):
+    js_temp = ["['Time', 'Temperature (C)']"]
+    js_hum = ["['Time', 'Humidity (%)']"]
+    data = sensors_logs.GetDHT22Readings(sensor_id, ts_start, ts_end)
+    for d in data:
+        ts = 1000 * d[0]
+        js_temp.append("[new Date(%d), %f]" % (ts, d[1]))
+        js_hum.append("[new Date(%d), %f]" % (ts, d[2]))
+    return ",".join(js_temp), ",".join(js_hum)
+
+
 def ViewSensorsHandler(parsed_path):
-    html = [HTML_HEADER, HTML_TOC, "<h1>View Sensors</h1>"]
     params = urlparse.parse_qs(parsed_path.query)
     sensor_type = ExtractParamValue(params, "type")
     if sensor_type is None:
+        html = [HTML_HEADER, HTML_TOC, "<h1>View Sensors</h1>"]
         html.append(__GetLatestSensorsReadingsTable())
         html.append(HTML_TAIL)
         return 200, "\n".join(html)
@@ -523,7 +537,42 @@ def ViewSensorsHandler(parsed_path):
         except:
             return 400, "'ts_start' must be a valid timestamp"
 
-    html.append(__GetSensorsReadingsTable(sensor_id, ts_start, ts_end))
+    mode = ExtractParamValue(params, "mode")
+    if mode is None or mode.lower() != "graph":
+        html = [HTML_HEADER, HTML_TOC, "<h1>View Sensors</h1>"]
+        html.append(__GetSensorsReadingsTable(sensor_id, ts_start, ts_end))
+        html.append(HTML_TAIL)
+        return 200, "\n".join(html)
+
+    
+    temp_data_js, hum_data_js = __GetSensorsReadingsGraphData(sensor_id, ts_start, ts_end)
+    html = [HTML_HEADER_BEGIN, """\
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+  google.charts.load('current', {packages: ['corechart']});
+  google.charts.setOnLoadCallback(drawChart);
+  function drawChart() {
+    var temp_data = google.visualization.arrayToDataTable([%s]);
+    var temp_options = {
+      title: 'Temperature',
+      curveType: 'function',
+      legend: { position: 'bottom' }
+    };
+    var temp_chart = new google.visualization.LineChart(document.getElementById('temp_chart'));
+    temp_chart.draw(temp_data, temp_options);
+    var hum_data = google.visualization.arrayToDataTable([%s]);
+    var hum_options = {
+      title: 'Humidity',
+      curveType: 'function',
+      legend: { position: 'bottom' }
+    };
+    var hum_chart = new google.visualization.LineChart(document.getElementById('hum_chart'));
+    hum_chart.draw(hum_data, hum_options);
+  }
+</script>""" % (temp_data_js, hum_data_js)]
+    html.extend([HTML_HEADER_END, HTML_TOC, "<h1>View Sensors</h1>"])
+    html.append('<div id="temp_chart" style="width: 900px; height: 500px"></div>')
+    html.append('<div id="hum_chart" style="width: 900px; height: 500px"></div>')
     html.append(HTML_TAIL)
     return 200, "\n".join(html)
 
@@ -534,4 +583,4 @@ if __name__ == "__main__":
     #print SensorsHandler(
     #    urlparse.urlparse("/sensors?type=dht22&id=1&ts=100&temp_c=25.3&hum_perc=40.1"))
     #print ViewSensorsHandler(urlparse.urlparse("/"))
-    print ViewSensorsHandler(urlparse.urlparse("/viewsensors?type=dht22&id=100"))
+    print ViewSensorsHandler(urlparse.urlparse("/viewsensors?type=dht22&id=100&mode=graph"))
