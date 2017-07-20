@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python2.7
 
 import os
 from rtorrent_xmlrpc import SCGIServerProxy

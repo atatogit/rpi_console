@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python2.7
 
 def BytesToHuman(num):
     for x in ['bytes','KB','MB','GB']:

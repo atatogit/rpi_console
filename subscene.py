@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python2.7
 
 import Queue
 from StringIO import StringIO
@@ -54,7 +54,7 @@ def GetMovieFiles(torrent_files, release):
 
 # Requires: "release" is ASCII.
 def __GetSearchReleaseUrl(release):
-    return "http://subscene.com/subtitles/release?q=%s" % urllib.quote(release)
+    return "https://subscene.com/subtitles/release?q=%s" % urllib.quote(release)
 
 def __NormalizeForMatchScore(s):
     normalized = s.replace(" ", ".").lower()
@@ -116,7 +116,7 @@ def SearchSubtitlesForRelease(release, movie_file, max_num_subs=None):
     return subs
 
 def GetSubtitleUrl(sub_url):
-    return "http://subscene.com/%s" % sub_url.lstrip("/")
+    return "https://subscene.com/%s" % sub_url.lstrip("/")
 
 def DownloadSubtitle(sub_url):
     data = url_opener.open(GetSubtitleUrl(sub_url)).read()

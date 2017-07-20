@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python2.7
 
 import SimpleHTTPServer
 from urlparse import urlparse
