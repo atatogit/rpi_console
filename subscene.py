@@ -27,7 +27,8 @@ __SUB_LIST_ENTRY_RE = re.compile(
     'href="(/subtitles/[^/]*/english/[^"]*)"' +
     '[^<]*<span[^<]*</span[^<]*<span[^>]*>([^<]*)</span')
 
-__SUB_DOWNLOAD_LINK_RE = re.compile('href="(/subtitle/download?[^"]*)"')
+__SUB_DOWNLOAD_LINK_RE = re.compile(
+    '<div class="download".*?href="(/subtitles/[^"]*)"', re.DOTALL)
 
 __MAX_NUM_SUBS = 5
 
