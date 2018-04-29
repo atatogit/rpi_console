@@ -11,7 +11,8 @@ import urllib
 import urllib2
 import zipfile
 
-from levenshtein import Levenshtein2, levenshtein
+from subtitles_score import ScoreSubtitleMatch
+
 
 __SUB_EXTENSIONS = set((".sub", ".srt"))
 
@@ -25,8 +26,6 @@ __SUB_LIST_ENTRY_RE = re.compile(
 __SUB_DOWNLOAD_LINK_RE = re.compile(
     '<div class="download".*?href="(/subtitles/[^"]*)"', re.DOTALL)
 
-__REMOVABLE_STRINGS = set(("[ettv]", "[eztv]"))
-
 __USER_AGENT = ('Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) '
                 'Gecko/20071127 Firefox/2.0.0.11')
 
@@ -36,17 +35,6 @@ url_opener.addheaders = [('User-agent', __USER_AGENT)]
 # Requires: "release" is ASCII.
 def __GetSearchReleaseUrl(release):
     return "https://subscene.com/subtitles/release?q=%s" % urllib.quote(release)
-
-def __NormalizeForMatchScore(s):
-    normalized = s.replace(" ", ".").lower()
-    for to_remove in __REMOVABLE_STRINGS:
-        normalized = normalized.replace(to_remove, "")
-    return normalized
-
-def __ScoreSubtitleMatch(query, sub_name):
-    normalized_query = __NormalizeForMatchScore(query)
-    normalized_sub_name = __NormalizeForMatchScore(sub_name)
-    return levenshtein(normalized_query, normalized_sub_name)
 
 # Searches "query" in subscene, parses out subtitles, and puts them scored into
 # "queue".
@@ -61,7 +49,7 @@ def __SearchSubtitlesForQuery(query, queue):
             queue.put([])
             return
         stripped_matches = [(m[1].strip(), m[0].strip()) for m in matches]
-        scored_matches = [(__ScoreSubtitleMatch(query, m[0]), m)
+        scored_matches = [(ScoreSubtitleMatch(query, m[0]), m)
                           for m in stripped_matches]
         queue.put(scored_matches)
     except Exception as e:
