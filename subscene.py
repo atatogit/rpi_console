@@ -13,11 +13,6 @@ import zipfile
 
 from levenshtein import Levenshtein2, levenshtein
 
-__VID_EXTENSIONS = set((".avi", ".mpg", ".mp4", ".mkv"))
-
-__VID_EXTENSIONS_RE = re.compile("(%s)$" % "|".join(
-        map(lambda s: s.replace(".", r"\."), __VID_EXTENSIONS)), re.IGNORECASE)
-
 __SUB_EXTENSIONS = set((".sub", ".srt"))
 
 __SUB_EXTENSIONS_RE = re.compile("(%s)$" % "|".join(
@@ -30,8 +25,6 @@ __SUB_LIST_ENTRY_RE = re.compile(
 __SUB_DOWNLOAD_LINK_RE = re.compile(
     '<div class="download".*?href="(/subtitles/[^"]*)"', re.DOTALL)
 
-__MAX_NUM_SUBS = 5
-
 __REMOVABLE_STRINGS = set(("[ettv]", "[eztv]"))
 
 __USER_AGENT = ('Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) '
@@ -39,19 +32,6 @@ __USER_AGENT = ('Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) '
 
 url_opener = urllib2.build_opener()
 url_opener.addheaders = [('User-agent', __USER_AGENT)]
-
-def TorrentNameToRelease(name):
-    return re.sub(__VID_EXTENSIONS_RE, "", name)
-
-def GetMovieFiles(torrent_files, release):
-    movie_files = []
-    for fname in torrent_files:
-        if re.search(__VID_EXTENSIONS_RE, fname):
-            distance = Levenshtein2(fname, release) 
-            movie_files.append((distance, fname))
-    if not movie_files: return movie_files
-    movie_files.sort()
-    return [x[1] for x in movie_files]
 
 # Requires: "release" is ASCII.
 def __GetSearchReleaseUrl(release):
@@ -88,8 +68,10 @@ def __SearchSubtitlesForQuery(query, queue):
         queue.put(e)
         return
 
-def SearchSubtitlesForRelease(release, movie_file, max_num_subs=None):
-    if max_num_subs is None: max_num_subs = __MAX_NUM_SUBS
+def __GetSubtitleUrl(sub_url):
+    return "https://subscene.com/%s" % sub_url.lstrip("/")
+
+def SearchSubtitlesForRelease(release, movie_file, max_num_subs):
     queue = Queue.Queue()
     for query in (release, movie_file):
         if type(query) == unicode:
@@ -112,12 +94,9 @@ def SearchSubtitlesForRelease(release, movie_file, max_num_subs=None):
     for score, (name, url) in scored_matches:
         if len(subs) >= max_num_subs: break
         if url in urls_seen: continue
-        subs.append((name, url, score))
+        subs.append((name, url, __GetSubtitleUrl(url), score))
         urls_seen.add(url)
     return subs
-
-def GetSubtitleUrl(sub_url):
-    return "https://subscene.com/%s" % sub_url.lstrip("/")
 
 def DownloadSubtitle(sub_url):
     data = url_opener.open(GetSubtitleUrl(sub_url)).read()

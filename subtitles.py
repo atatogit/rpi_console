@@ -3,12 +3,15 @@
 import re
 
 from levenshtein import Levenshtein2
+import subscene
 
 
 __VID_EXTENSIONS = set((".avi", ".mpg", ".mp4", ".mkv"))
 
 __VID_EXTENSIONS_RE = re.compile("(%s)$" % "|".join(
         map(lambda s: s.replace(".", r"\."), __VID_EXTENSIONS)), re.IGNORECASE)
+
+__MAX_NUM_SUBS = 5
 
 
 def TorrentNameToRelease(name):
@@ -25,3 +28,11 @@ def GetMovieFiles(torrent_files, release):
     movie_files.sort()
     return [x[1] for x in movie_files]
 
+
+def SearchSubtitlesForRelease(release, movie_file, max_num_subs=None):
+    if max_num_subs is None: max_num_subs = __MAX_NUM_SUBS
+    subscene.SearchSubtitlesForRelease(release, movie_file, max_num_subs)
+
+
+def DownloadSubtitle(sub_url):
+    subscene.DownloadSubtitle(sub_url)

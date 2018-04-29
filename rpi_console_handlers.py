@@ -10,7 +10,7 @@ import urlparse
 
 from html_utils import HtmlEscape
 import router_logs
-import subscene
+import subtitles
 import torrent
 import torrent_logs
 import sensors_logs
@@ -269,9 +269,9 @@ def TorrentLogsHandler(parsed_path):
 
 def SearchSubsHandler(
     params, torrent_hash, name, html, max_num_subs_or_none=None):
-    release = subscene.TorrentNameToRelease(name)
+    release = subtitles.TorrentNameToRelease(name)
     html.append("<div><b>Release:</b> %s</div>" % HtmlEscape(release))
-    movie_files = subscene.GetMovieFiles(
+    movie_files = subtitles.GetMovieFiles(
         torrent.GetTorrentFiles(torrent_hash), release)
     if not movie_files:
         html.extend(["Failed to identify movie candidates.", HTML_TAIL])
@@ -280,7 +280,7 @@ def SearchSubsHandler(
     movie_file = movie_files[0]
     html.append("<div><b>Movie file:</b> %s" % HtmlEscape(movie_file))
     movie_file_no_ext = os.path.basename(movie_file)[:-4]
-    sub_list = subscene.SearchSubtitlesForRelease(
+    sub_list = subtitles.SearchSubtitlesForRelease(
         release, movie_file_no_ext, max_num_subs_or_none)
     if not sub_list:
         html.extend(["<br>No subtitles found...", HTML_TAIL])
@@ -288,8 +288,8 @@ def SearchSubsHandler(
     html.append("<div><b>Subtitles:</b></div>")
     html.append("<div><form action='/subs' method='get'>")
     for i, s in enumerate(sub_list):
-        esc_name, esc_url, score = HtmlEscape(s[0]), HtmlEscape(s[1]), s[2]
-        esc_full_url = HtmlEscape(subscene.GetSubtitleUrl(s[1]))
+        esc_name, esc_url, esc_full_url, score = (
+            HtmlEscape(s[0]), HtmlEscape(s[1]), HtmlEscape(s[2]), s[3])
         html.append("""\
 <input type='radio' name='suburl' value='%s' %s>%s (%d)
 <a href='%s' target='_blank'>Go to sub page</a><br>""" % (
@@ -319,7 +319,7 @@ def DownloadSubHandler(torrent_hash, sub_url, movie_file, html):
     movie_file = os.path.join(DOWNLOADS_DIR, movie_file)
     base_dir = os.path.dirname(movie_file)
     movie_file_noext = movie_file[:-4]
-    sub_fname, sub_data = subscene.DownloadSubtitle(sub_url)
+    sub_fname, sub_data = subtitles.DownloadSubtitle(sub_url)
     if len(sub_fname) < 5 or sub_fname[-4] != '.':
         html.append("Bad subtitle file name: " % HtmlEscape(sub_fname))
         return    
