@@ -3,6 +3,7 @@
 import re
 
 from levenshtein import Levenshtein2
+import opensubtitles
 import subscene
 
 
@@ -31,8 +32,9 @@ def GetMovieFiles(torrent_files, release):
 
 def SearchSubtitlesForRelease(release, movie_file, max_num_subs=None):
     if max_num_subs is None: max_num_subs = __MAX_NUM_SUBS
-    subscene.SearchSubtitlesForRelease(release, movie_file, max_num_subs)
+    return opensubtitles.SearchSubtitlesForRelease(
+        release, movie_file, max_num_subs)
 
 
 def DownloadSubtitle(sub_url):
-    subscene.DownloadSubtitle(sub_url)
+    return opensubtitles.DownloadSubtitle(sub_url)

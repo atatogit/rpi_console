@@ -124,7 +124,8 @@ def DownloadSubtitle(sub_url):
     
 
 if __name__ == "__main__":
-    print SearchSubtitlesForRelease("Halt.and.Catch.Fire.S01E07.HDTV.x264-ASAP",
-                                    "Halt.and.Catch.Fire.S01E07.HDTV.x264-ASAP")
+    print SearchSubtitlesForRelease(
+        "Halt.and.Catch.Fire.S01E07.HDTV.x264-ASAP",
+        "Halt.and.Catch.Fire.S01E07.HDTV.x264-ASAP")
     # DownloadSubtitle("/subtitles/silicon-valley-first-season/english/894763")
     pass
