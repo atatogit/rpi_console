@@ -9,7 +9,7 @@ import json
 import os
 import struct
 import threading
-from time import time
+from time import sleep, time
 import xmlrpclib
 
 from subtitles_score import ScoreSubtitleMatch
@@ -28,6 +28,8 @@ _UNAUTHORIZED_STATUS = "401 Unauthorized"
 _RELOGIN_STATUSES = (_NO_SESSION_STATUS, _UNAUTHORIZED_STATUS)
 
 _MAX_NUM_RETRIES = 3
+
+_SLEEP_BETWEEN_RETRIES_SECS = 1
 
 # Expected to be like
 # {
@@ -107,12 +109,17 @@ class OpenSubtitlesSession(object):
                 else:
                     raise OpenSubtitlesException(
                         "Failed NoOperation: %s" % status)
-        for attempt in range(_MAX_NUM_RETRIES):
+
+        attempt = 0
+        while True:
+            attempt += 1
             resp = method(*args)
             status = resp["status"]
-            if status not in _RELOGIN_STATUSES:
-                return resp
-            self._login(channel)
+            if status == _OK_STATUS or attempt >= _MAX_NUM_RETRIES:
+                break
+            sleep(_SLEEP_BETWEEN_RETRIES_SECS)
+            if status in _RELOGIN_STATUSES:
+                self._login(channel)
         return resp
                     
     def close(self):
