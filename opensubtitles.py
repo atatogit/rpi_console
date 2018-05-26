@@ -6,7 +6,10 @@ import atexit
 from base64 import b64decode, b64encode
 import gzip
 import json
+import os
+import struct
 import threading
+from time import time
 import xmlrpclib
 
 from subtitles_score import ScoreSubtitleMatch
@@ -14,14 +17,48 @@ from subtitles_score import ScoreSubtitleMatch
 
 _OPENSUBS_URL = "https://api.opensubtitles.org:443/xml-rpc"
 
+_SESSION_EXPIRY_SECS = 60 * 15  # 14 minutes.
+
 _OK_STATUS = "200 OK"
+
+_NO_SESSION_STATUS = "406 No session"
+
+_UNAUTHORIZED_STATUS = "401 Unauthorized"
+
+_RELOGIN_STATUSES = (_NO_SESSION_STATUS, _UNAUTHORIZED_STATUS)
+
+_MAX_NUM_RETRIES = 3
 
 # Expected to be like
 # {
 #   "username": "<username>",
 #   "password": "<password>"
 # }
-_CREDS_FILE = 'opensubtitles_config.json'
+_CREDS_FILE = '/usr/local/bin/rpi_console/opensubtitles_config.json'
+
+
+def HashFile(name): 
+    longlongformat = '<q'  # little-endian long long
+    bytesize = struct.calcsize(longlongformat) 
+    f = open(name, "rb") 
+    filesize = os.path.getsize(name) 
+    hash = filesize 
+    assert filesize >= 65536 * 2
+    for x in range(65536/bytesize): 
+        buffer = f.read(bytesize) 
+        (l_value,)= struct.unpack(longlongformat, buffer)  
+        hash += l_value 
+        hash = hash & 0xFFFFFFFFFFFFFFFF # to remain as 64bit number  
+    f.seek(max(0,filesize-65536),0) 
+    for x in range(65536/bytesize): 
+        buffer = f.read(bytesize) 
+        (l_value,)= struct.unpack(longlongformat, buffer)  
+        hash += l_value 
+        hash = hash & 0xFFFFFFFFFFFFFFFF 
+                
+    f.close() 
+    returnedhash =  "%016x" % hash 
+    return returnedhash 
 
 
 def _EncodeIDAndFilename(sub_id, filename):
@@ -41,82 +78,55 @@ class OpenSubtitlesException(Exception):
         return repr(self.value)
 
 
-class PooledOpenSubtitlesSession(object):
-    def __init__(self, pool):
-        self._pool = pool
+def _CreateOpenSubtitlesChannel():
+    return xmlrpclib.ServerProxy(_OPENSUBS_URL)    
 
-    def __enter__(self):
-        self._session = self._pool.Get();
-        return self._session
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        self._pool.Return(self._session)
-
-
-class OpenSubtitlesSessionPool(object):
-    def __init__(self, username, password, num_sessions=2):
-        self._username = username
-        self._password = password
-        self._num_sessions = num_sessions
-        self._num_created_sessions = 0
-        self._sessions = []
-        self._sessions_available = threading.Condition()
-
-    def Get(self):
-        self._sessions_available.acquire()
-        while not self._sessions:
-            if self._num_created_sessions < self._num_sessions:
-                self._sessions.append(
-                    OpenSubtitlesSession(self._username, self._password))
-                self._num_created_sessions += 1
-                break
-            else:
-                self._sessions_available.wait()
-        session = self._sessions.pop()
-        self._sessions_available.release()
-        return session
-
-    def Return(self, session):
-        self._sessions_available.acquire()
-        self._sessions.append(session)
-        self._sessions_available.notify()
-        self._sessions_available.release()
-
-    def Close(self):
-        self._sessions_available.acquire()
-        while len(self._sessions) != self._num_sessions:
-            self._sessions_available.wait()
-        for session in self._sessions:
-            try:
-                session.close()
-            except:
-                pass
-        del self._sessions[:]
-        self._num_created_sessions = 0
-        self._sessions_available.release()
-        
 
 class OpenSubtitlesSession(object):
     def __init__(self, username, password):
-        self._server = xmlrpclib.ServerProxy(_OPENSUBS_URL)
-        resp = self._server.LogIn(username, password, "en",
-                                  "TemporaryUserAgent")
+        self._username = username
+        self._password = password
+        self._login(_CreateOpenSubtitlesChannel())
+
+    def _login(self, channel):
+        last_login_time = time()
+        resp = channel.LogIn(
+            self._username, self._password, "en", "TemporaryUserAgent")
         if resp["status"] != _OK_STATUS:
             raise OpenSubtitlesException(
                 "Failed logging into OpenSubtitles: %s" % resp["status"])
         self._token = resp["token"]
-
+        self._login_expiry_time = last_login_time + _SESSION_EXPIRY_SECS
+        
+    def _call(self, channel, method, args):
+        if time() > self._login_expiry_time:
+            status = channel.NoOperation(self._token)["status"]
+            if status != _OK_STATUS:
+                if status in _RELOGIN_STATUSES:
+                    self._login(channel)
+                else:
+                    raise OpenSubtitlesException(
+                        "Failed NoOperation: %s" % status)
+        for attempt in range(_MAX_NUM_RETRIES):
+            resp = method(*args)
+            status = resp["status"]
+            if status not in _RELOGIN_STATUSES:
+                return resp
+            self._login(channel)
+        return resp
+                    
     def close(self):
-        resp = self._server.LogOut(self._token)
+        resp = _CreateOpenSubtitlesChannel().LogOut(self._token)
         if resp["status"] != _OK_STATUS:
             raise OpenSubtitlesException(
                 "Failed closing OpenSubtitles session: %s" % resp["status"])
 
-    def search(self, query, max_num_subs):
-        resp = self._server.SearchSubtitles(
-            self._token,
-            [{"query": query, "sublanguageid": "eng"}],
-            {"limit": max_num_subs})
+    def search(self, queries, max_num_subs):
+        channel = _CreateOpenSubtitlesChannel()
+        resp = self._call(channel,
+                          channel.SearchSubtitles,
+                          [self._token, queries,  {"limit": max_num_subs}])
+        # print resp
         if resp["status"] != _OK_STATUS:
             raise OpenSubtitlesException(
                 "Failed searching OpenSubtitles: %s" % resp["status"])
@@ -140,8 +150,9 @@ class OpenSubtitlesSession(object):
         return subs
 
     def download(self, id_subtitle_file):
-        resp = self._server.DownloadSubtitles(self._token,
-                                              [id_subtitle_file])
+        channel = _CreateOpenSubtitlesChannel()
+        resp = self._call(channel, channel.DownloadSubtitles,
+                          [self._token, [id_subtitle_file]])
         if resp["status"] != _OK_STATUS:
             raise OpenSubtitlesException(
                 "Failed downloading from OpenSubtitles: %s" % resp["status"])
@@ -165,24 +176,37 @@ class OpenSubtitlesSession(object):
                 "Error gunziping subtitles: %s" % repr(e))
         
 
+def _SearchSubtitlesForHash(movie_size, movie_hash, max_num_subs):
+    open_subtitles_query = [{"moviehash": movie_hash, "moviebytesize": movie_size,
+                             "sublanguageid": "eng"}]
+    return _GetGlobalSession().search(open_subtitles_query, max_num_subs)
+
+
 def _SearchSubtitlesForQuery(query, max_num_subs, queue):
+    open_subtitles_query = [{"query": query, "sublanguageid": "eng"}]
     try:
-        with PooledOpenSubtitlesSession(_session_pool) as session:
-            queue.put(session.search(query, max_num_subs))
+        queue.put(_GetGlobalSession().search(open_subtitles_query, max_num_subs))
     except Exception as e:
         queue.put(e)
 
 
-def SearchSubtitlesForRelease(release, movie_file, max_num_subs=10):
-    queue = Queue.Queue()
-    for query in (release, movie_file):
-        t = threading.Thread(target=_SearchSubtitlesForQuery,
-                             args=(query, max_num_subs, queue))
-        t.daemon = True
-        t.start()
-    thread_results = (queue.get(), queue.get())
+def SearchSubtitlesForRelease(release, movie_file, movie_size=None,
+                              movie_hash=None, max_num_subs=10):
+    all_results = []
+    if movie_size and movie_hash:
+        all_results.append(
+            _SearchSubtitlesForHash(movie_size, movie_hash, max_num_subs))
+    if not all_results:
+        queue = Queue.Queue()
+        for query in (release, movie_file):
+            t = threading.Thread(target=_SearchSubtitlesForQuery,
+                                 args=(query, max_num_subs, queue))
+            t.daemon = True
+            t.start()
+        thread_results = (queue.get(), queue.get())
+        all_results.extend(thread_results)
     scored_matches = []
-    for result in thread_results:
+    for result in all_results:
         if isinstance(result, Exception):
             raise result
         scored_matches.extend((min(ScoreSubtitleMatch(release, sub[0]),
@@ -204,8 +228,7 @@ def SearchSubtitlesForRelease(release, movie_file, max_num_subs=10):
 def DownloadSubtitle(encoded_sub_id_and_filename):
     sub_id, sub_filename = _DecodeIDAndFilename(
         encoded_sub_id_and_filename)
-    with PooledOpenSubtitlesSession(_session_pool) as session:
-        return (sub_filename, session.download(sub_id))
+    return (sub_filename, _GetGlobalSession().download(sub_id))
 
 
 def _ReadConfigFromFile():
@@ -214,13 +237,19 @@ def _ReadConfigFromFile():
         return data["username"], data["password"]
 
 
-_session_pool = OpenSubtitlesSessionPool(*_ReadConfigFromFile())
+_session = None
+
+
+def _GetGlobalSession():
+  global _session
+  if not _session:
+      _session = OpenSubtitlesSession(*_ReadConfigFromFile())
+  return _session
 
 
 @atexit.register
 def _CloseSessions():
-    global _session_pool
-    _session_pool.Close()
+    _GetGlobalSession().close()
 
 
 if __name__ == "__main__":
@@ -230,7 +259,13 @@ if __name__ == "__main__":
     #print SearchSubtitlesForRelease(
     #    "The.Americans.2013.S06E05.HDTV.x264-SVA",
     #    "The.Americans.2013.S06E05.HDTV.x264-SVA[rarbg]")
-    print SearchSubtitlesForRelease(
-        "www.Torrenting.com - American.Gods.S01E08.HDTV.x264-FLEET",
-        "www.Torrenting.com - American.Gods.S01E08.HDTV.x264-FLEET")
+    #print SearchSubtitlesForRelease(
+    #    "www.Torrenting.com - American.Gods.S01E08.HDTV.x264-FLEET",
+    #    "www.Torrenting.com - American.Gods.S01E08.HDTV.x264-FLEET")
+    #print SearchSubtitlesForRelease(
+    #    "the.handmaids.tale.s01e10.xvid-afg",
+    #    "the.handmaids.tale.s01e10.xvid-afg")
+    
     # print len(DownloadSubtitle("1955037593"))
+
+    print HashFile(r"/mnt/wdtv/downloads/The.Americans.2013.S06E05.HDTV.x264-SVA[rarbg]/The.Americans.2013.S06E05.HDTV.x264-SVA.mkv")

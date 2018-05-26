@@ -7,10 +7,10 @@ __REMOVABLE_STRINGS = set(("[ettv]", "[eztv]"))
 
 
 def __NormalizeForMatchScore(s):
-    normalized = s.replace(" ", ".").lower()
+    normalized = s.strip().replace(" ", ".").lower()
     for to_remove in __REMOVABLE_STRINGS:
         normalized = normalized.replace(to_remove, "")
-    return normalized
+    return normalized.strip()
 
 
 def ScoreSubtitleMatch(query, sub_name):

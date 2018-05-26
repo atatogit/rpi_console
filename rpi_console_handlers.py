@@ -263,6 +263,11 @@ def TorrentLogsHandler(parsed_path):
     elif event_type == "finished":
         torrent_logs.AddTorrentEvent(
             torrent_logs.EventType.download_finish, torrent_hash)
+        movie_size = ExtractParamValue(params, "movie_size")
+        opensubtitles_hash = ExtractParamValue(params, "opensubtitles_hash")
+        if movie_size and opensubtitles_hash:
+            torrent_logs.UpdateTorrentSizeAndOpenSubtitlesHash(
+                torrent_hash, movie_size, opensubtitles_hash)
         return 200, "Torrent finish event logged."
     return 400, "Unsuported event type"
 
@@ -280,8 +285,12 @@ def SearchSubsHandler(
     movie_file = movie_files[0]
     html.append("<div><b>Movie file:</b> %s" % HtmlEscape(movie_file))
     movie_file_no_ext = os.path.basename(movie_file)[:-4]
+    movie_size,  opensubtitles_hash = \
+        torrent_logs.GetTorrentSizeAndOpenSubtitlesHash(torrent_hash)
     sub_list = subtitles.SearchSubtitlesForRelease(
-        release, movie_file_no_ext, max_num_subs_or_none)
+        release, movie_file_no_ext, movie_size=movie_size,
+        opensubtitles_hash=opensubtitles_hash,
+        max_num_subs=max_num_subs_or_none)
     if not sub_list:
         html.extend(["<br>No subtitles found...", HTML_TAIL])
         return

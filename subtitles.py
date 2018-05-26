@@ -30,10 +30,11 @@ def GetMovieFiles(torrent_files, release):
     return [x[1] for x in movie_files]
 
 
-def SearchSubtitlesForRelease(release, movie_file, max_num_subs=None):
+def SearchSubtitlesForRelease(release, movie_file, movie_size=None,
+                              opensubtitles_hash=None, max_num_subs=None):
     if max_num_subs is None: max_num_subs = __MAX_NUM_SUBS
     return opensubtitles.SearchSubtitlesForRelease(
-        release, movie_file, max_num_subs)
+        release, movie_file, movie_size, opensubtitles_hash, max_num_subs)
 
 
 def DownloadSubtitle(sub_url):

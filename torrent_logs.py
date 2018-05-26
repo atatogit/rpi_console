@@ -16,6 +16,24 @@ def AddTorrent(torrent_hash, name):
                  (torrent_hash, name))
     __DB.commit()
 
+def UpdateTorrentSizeAndOpenSubtitlesHash(
+    torrent_hash, file_size, opensubtitles_movie_hash):
+    __DB.execute("""\
+UPDATE torrents
+   SET file_size = ?, opensubtitles_movie_hash = ?
+ WHERE hash = ?;""",
+                 (file_size, opensubtitles_movie_hash, torrent_hash))
+    __DB.commit()
+
+def GetTorrentSizeAndOpenSubtitlesHash(torrent_hash):
+    result = __DB.execute(
+        "SELECT file_size, opensubtitles_movie_hash "
+        "FROM torrents WHERE hash = ?;",
+        (torrent_hash,)).fetchone()
+    if result is None:
+        return (None, None)
+    return result
+
 def AddTorrentEvent(event_type, torrent_hash, extra=None):
     now = int(time.time())
     if extra is not None: extra = json.dumps(extra, ensure_ascii=False)
@@ -72,7 +90,9 @@ ORDER BY download_start.max_date DESC, torrents.name ASC LIMIT :limit;""" % (
 __DB.execute("""\
 CREATE TABLE IF NOT EXISTS torrents (
   hash TEXT PRIMARY KEY NOT NULL,
-  name TEXT
+  name TEXT,
+  file_size INTEGER,
+  opensubtitles_movie_hash TEXT
 );""")
 
 __DB.execute("""\
@@ -110,6 +130,10 @@ if __name__ == "__main__":
         AddTorrent("thisisahash", "lala2")
         AddTorrentEvent(EventType.download_start, "thisisahash")
         AddTorrentEvent(EventType.download_finish, "thisisahash")
-    print GetTorrentsLogTable()
-    print GetTorrentsLogTable(name_query="ar ow")
-    print HasSubtitles("24778772CE261A966A65CF01FD2FBA3F2F147C09")
+    #print GetTorrentsLogTable()
+    #print GetTorrentsLogTable(name_query="ar ow")
+    #print HasSubtitles("24778772CE261A966A65CF01FD2FBA3F2F147C09")
+    #for x in __DB.execute("SELECT * from torrents;").fetchall():
+    #    print x
+    print GetTorrentSizeAndOpenSubtitlesHash(
+        "1A257306326ED06118B5B9D8BA893EAED3F1713B")
