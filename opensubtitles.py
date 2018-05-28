@@ -27,7 +27,7 @@ _UNAUTHORIZED_STATUS = "401 Unauthorized"
 
 _RELOGIN_STATUSES = (_NO_SESSION_STATUS, _UNAUTHORIZED_STATUS)
 
-_MAX_NUM_RETRIES = 3
+_MAX_NUM_RETRIES = 5
 
 _SLEEP_BETWEEN_RETRIES_SECS = 1
 
@@ -88,9 +88,13 @@ class OpenSubtitlesSession(object):
     def __init__(self, username, password):
         self._username = username
         self._password = password
-        self._login(_CreateOpenSubtitlesChannel())
+        self._token = None
 
     def _login(self, channel):
+        if self._token:
+            raise OpenSubtitlesException(
+                "Attempting to login without having closed")
+
         last_login_time = time()
         resp = channel.LogIn(
             self._username, self._password, "en", "TemporaryUserAgent")
@@ -101,29 +105,48 @@ class OpenSubtitlesSession(object):
         self._login_expiry_time = last_login_time + _SESSION_EXPIRY_SECS
         
     def _call(self, channel, method, args):
-        if time() > self._login_expiry_time:
+        if not self._token:
+            self._login(channel)
+        elif time() > self._login_expiry_time:
             status = channel.NoOperation(self._token)["status"]
             if status != _OK_STATUS:
-                if status in _RELOGIN_STATUSES:
-                    self._login(channel)
-                else:
+                if status not in _RELOGIN_STATUSES:
                     raise OpenSubtitlesException(
                         "Failed NoOperation: %s" % status)
+                self._try_close_and_login(channel)
 
         attempt = 0
         while True:
             attempt += 1
-            resp = method(*args)
+            method_time = time()
+            resp = method(self._token, *args)
             status = resp["status"]
-            if status == _OK_STATUS or attempt >= _MAX_NUM_RETRIES:
+            if status == _OK_STATUS:
+                self._login_expiry_time = method_time + _SESSION_EXPIRY_SECS
+                break
+            if attempt >= _MAX_NUM_RETRIES:
                 break
             sleep(_SLEEP_BETWEEN_RETRIES_SECS)
             if status in _RELOGIN_STATUSES:
-                self._login(channel)
+                self._try_close_and_login(channel)
+
         return resp
                     
-    def close(self):
-        resp = _CreateOpenSubtitlesChannel().LogOut(self._token)
+    def _try_close_and_login(self, channel):
+        try:
+            self.close(channel)
+        except OpenSubtitlesException as e:
+            # Ignoring the failed attempt to close.
+            pass
+        self._login(channel)
+
+    def close(self, channel=None):
+        if not self._token:
+            return
+        if not channel:
+            channel = _CreateOpenSubtitlesChannel()
+        resp = channel.LogOut(self._token)
+        self._token = None
         if resp["status"] != _OK_STATUS:
             raise OpenSubtitlesException(
                 "Failed closing OpenSubtitles session: %s" % resp["status"])
@@ -132,7 +155,7 @@ class OpenSubtitlesSession(object):
         channel = _CreateOpenSubtitlesChannel()
         resp = self._call(channel,
                           channel.SearchSubtitles,
-                          [self._token, queries,  {"limit": max_num_subs}])
+                          [queries,  {"limit": max_num_subs}])
         # print resp
         if resp["status"] != _OK_STATUS:
             raise OpenSubtitlesException(
@@ -159,7 +182,7 @@ class OpenSubtitlesSession(object):
     def download(self, id_subtitle_file):
         channel = _CreateOpenSubtitlesChannel()
         resp = self._call(channel, channel.DownloadSubtitles,
-                          [self._token, [id_subtitle_file]])
+                          [[id_subtitle_file]])
         if resp["status"] != _OK_STATUS:
             raise OpenSubtitlesException(
                 "Failed downloading from OpenSubtitles: %s" % resp["status"])
@@ -186,13 +209,13 @@ class OpenSubtitlesSession(object):
 def _SearchSubtitlesForHash(movie_size, movie_hash, max_num_subs):
     open_subtitles_query = [{"moviehash": movie_hash, "moviebytesize": movie_size,
                              "sublanguageid": "eng"}]
-    return _GetGlobalSession().search(open_subtitles_query, max_num_subs)
+    return _session.search(open_subtitles_query, max_num_subs)
 
 
 def _SearchSubtitlesForQuery(query, max_num_subs, queue):
     open_subtitles_query = [{"query": query, "sublanguageid": "eng"}]
     try:
-        queue.put(_GetGlobalSession().search(open_subtitles_query, max_num_subs))
+        queue.put(_session.search(open_subtitles_query, max_num_subs))
     except Exception as e:
         queue.put(e)
 
@@ -235,7 +258,7 @@ def SearchSubtitlesForRelease(release, movie_file, movie_size=None,
 def DownloadSubtitle(encoded_sub_id_and_filename):
     sub_id, sub_filename = _DecodeIDAndFilename(
         encoded_sub_id_and_filename)
-    return (sub_filename, _GetGlobalSession().download(sub_id))
+    return (sub_filename, _session.download(sub_id))
 
 
 def _ReadConfigFromFile():
@@ -244,19 +267,12 @@ def _ReadConfigFromFile():
         return data["username"], data["password"]
 
 
-_session = None
-
-
-def _GetGlobalSession():
-  global _session
-  if not _session:
-      _session = OpenSubtitlesSession(*_ReadConfigFromFile())
-  return _session
+_session = OpenSubtitlesSession(*_ReadConfigFromFile())
 
 
 @atexit.register
 def _CloseSessions():
-    _GetGlobalSession().close()
+    _session.close()
 
 
 if __name__ == "__main__":
