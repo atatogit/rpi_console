@@ -80,9 +80,16 @@ class OpenSubtitlesException(Exception):
         return repr(self.value)
 
 
-def _CreateOpenSubtitlesChannel():
-    return xmlrpclib.ServerProxy(_OPENSUBS_URL)    
+class OpenSubtitlesChannel(object):
+    def __init__(self):
+        self._server = xmlrpclib.ServerProxy(_OPENSUBS_URL)
 
+    def __enter__(self):
+        return self._server
+
+    def __exit__(self, type, value, traceback):
+        self._server.close()
+        
 
 class OpenSubtitlesSession(object):
     def __init__(self, username, password):
@@ -143,8 +150,13 @@ class OpenSubtitlesSession(object):
     def close(self, channel=None):
         if not self._token:
             return
-        if not channel:
-            channel = _CreateOpenSubtitlesChannel()
+        if channel is not None:
+            self._close_with_channel(channel)
+        else:
+            with OpenSubtitlesChannel() as channel:
+                self._close_with_channel(channel)
+
+    def _close_with_channel(self, channel):
         resp = channel.LogOut(self._token)
         self._token = None
         if resp["status"] != _OK_STATUS:
@@ -152,10 +164,10 @@ class OpenSubtitlesSession(object):
                 "Failed closing OpenSubtitles session: %s" % resp["status"])
 
     def search(self, queries, max_num_subs):
-        channel = _CreateOpenSubtitlesChannel()
-        resp = self._call(channel,
-                          channel.SearchSubtitles,
-                          [queries,  {"limit": max_num_subs}])
+        with OpenSubtitlesChannel() as channel:
+            resp = self._call(channel,
+                              channel.SearchSubtitles,
+                              [queries,  {"limit": max_num_subs}])
         # print resp
         if resp["status"] != _OK_STATUS:
             raise OpenSubtitlesException(
@@ -180,9 +192,9 @@ class OpenSubtitlesSession(object):
         return subs
 
     def download(self, id_subtitle_file):
-        channel = _CreateOpenSubtitlesChannel()
-        resp = self._call(channel, channel.DownloadSubtitles,
-                          [[id_subtitle_file]])
+        with OpenSubtitlesChannel() as channel:
+            resp = self._call(channel, channel.DownloadSubtitles,
+                              [[id_subtitle_file]])
         if resp["status"] != _OK_STATUS:
             raise OpenSubtitlesException(
                 "Failed downloading from OpenSubtitles: %s" % resp["status"])
@@ -276,9 +288,9 @@ def _CloseSessions():
 
 
 if __name__ == "__main__":
-    #print SearchSubtitlesForRelease(
-    #    "Billions.S01E01.HDTV.XviD-FUM[ettv]",
-    #    "Billions.S01E01.HDTV.XviD-FUM[ettv]")
+    print SearchSubtitlesForRelease(
+        "Billions.S01E01.HDTV.XviD-FUM[ettv]",
+        "Billions.S01E01.HDTV.XviD-FUM[ettv]")
     #print SearchSubtitlesForRelease(
     #    "The.Americans.2013.S06E05.HDTV.x264-SVA",
     #    "The.Americans.2013.S06E05.HDTV.x264-SVA[rarbg]")
@@ -291,4 +303,4 @@ if __name__ == "__main__":
     
     # print len(DownloadSubtitle("1955037593"))
 
-    print HashFile(r"/mnt/wdtv/downloads/The.Americans.2013.S06E05.HDTV.x264-SVA[rarbg]/The.Americans.2013.S06E05.HDTV.x264-SVA.mkv")
+    #print HashFile(r"/mnt/wdtv/downloads/The.Americans.2013.S06E05.HDTV.x264-SVA[rarbg]/The.Americans.2013.S06E05.HDTV.x264-SVA.mkv")
