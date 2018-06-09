@@ -30,9 +30,12 @@ HTML_TAIL = "</body></html>"
 
 HTML_TOC =  """\
 <div class="toc">
-Go to: <a href="/">Console</a>, <a href="/rtorrent">rTorrent List</a>,
-<a href="/router">Router</a>, <a href="/sysactmenu">Actions</a>,
-<a href="/viewsensors">Sensors</a>
+Go to:
+<a accesskey="c" href="/">Console</a>,
+<a accesskey="t" href="/rtorrent">rTorrent List</a>,
+<a accesskey="r" href="/router">Router</a>,
+<a accesskey="a" href="/sysactmenu">Actions</a>,
+<a accesskey="s" href="/viewsensors">Sensors</a>
 </div>"""
 
 HTML_ACTIONS_TITLE = "<h1>Raspi System Action</h1>"
