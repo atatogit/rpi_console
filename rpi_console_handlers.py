@@ -420,8 +420,10 @@ def SensorsHandler(parsed_path):
     sensor_type = ExtractParamValue(params, "type")
     if sensor_type is None:
         return 400, "'type' must be provided"
-    if sensor_type.lower() != "dht22":
-        return 501, "Unsuported sensor type (only dht22 is supported)"
+    sensor_type = sensor_type.lower()
+    if sensor_type not in ("dht22", "bmp280", "bme280"):
+        return 501, ("Unsuported sensor type (only dht22, bmp280, bme280 "
+                     "are supported)")
     try:
         sensor_id = int(ExtractParamValue(params, "id"))
         if sensor_id <= 0:
@@ -433,20 +435,40 @@ def SensorsHandler(parsed_path):
         if ts_secs < 0:
             return 400, "'ts' must not be negative"
     except:
-        return 400, "'ts' must be a valid timestamp"
+        ts_secs = int(time.time())
     try:
         temp_c = float(ExtractParamValue(params, "temp_c"))
     except:
         return 400, "'temp_c' must be a valid temperature"
+    if sensor_type in ("dht22", "bme280"):
+        try:
+            humidity_perc = float(ExtractParamValue(params, "hum_perc"))
+        except:
+            return 400, "'hum_perc' must be a valid percentual humidity"
+    else:
+        humidity_perc = None
+    if sensor_type in ("bme280", "bmp280"):
+        try:
+            pressure_hpa = float(ExtractParamValue(params, "press_hpa"))
+        except:
+            return 400, "'press_hpa' must be a valid atmospheric pressure"
+    else:
+        pressure_hpa = None
+        
     try:
-        humidity_perc = float(ExtractParamValue(params, "hum_perc"))
-    except:
-        return 400, "'hum_perc' must be a valid percentual humidity"
-    try:
-        sensors_logs.InsertDHT22Reading(
-            sensor_id, ts_secs, temperature_c=temp_c, humidity_perc=humidity_perc)
+        if sensor_type == "dht22":
+            sensors_logs.InsertDHT22Reading(
+                sensor_id, ts_secs, temperature_c=temp_c,
+                humidity_perc=humidity_perc)
+        elif sensor_type in ("bme280", "bmp280"):
+            sensors_logs.InsertBMPE280Reading(
+                sensor_id, ts_secs, temperature_c=temp_c,
+                humidity_perc=humidity_perc, pressure_hpa=pressure_hpa)
+        else:
+            return 500, "Unhandled sensor type case."
     except Exception as e:
-        html.append(__ExceptionToHtml(e))
+        print str(e)
+        return 500, __ExceptionToHtml(e)
 
     return 200, "OK"
 
@@ -474,10 +496,35 @@ def __GetLatestSensorsReadingsTable():
         html.append("</tr>")
     html.append("</table>")
     if not data: html.append("No DHT22 devices found.")
+
+    html.append("<h2>BMP280 & BME280 Sensors</h2>")
+    html.append('<table class="latest_sensors_table"><tr>')
+    columns = ["ID", "Last Masurement", "Temp (C)", "Humidity (%)",
+               "Pressure (hpa)", "History"]
+    for c in columns: html.append("<th>%s</th>" % c)
+    html.append("</tr>")
+    data = sensors_logs.GetLatestBMPE280Readings()
+    for d in data:
+        device_id = str(d[0])
+        last_date = HtmlEscape(__TimestampToHuman(d[1]))
+        temp = str(d[2])
+        hum = str(d[3])
+        press = str(d[4])
+        html.append("<tr>")
+        for c in (device_id, last_date, temp, hum, press):
+            html.append("<td>%s</td>" % c)
+        html.append('<td><a href="/viewsensors?mode=table&type=bmpe280&'
+                    'id=%s">Table</a> / ' % device_id)
+        html.append('<a href="/viewsensors?mode=graph&type=bmpe280&'
+                    'id=%s">Graph</a></td>' % device_id)
+        html.append("</tr>")
+    html.append("</table>")
+    if not data: html.append("No BMP280 or BME280 devices found.")
+
     return "\n".join(html)
 
 
-def __GetSensorsReadingsTable(sensor_id, ts_start, ts_end):
+def __GetDHT22SensorsReadingsTable(sensor_id, ts_start, ts_end):
     html = []
     html.append('<table class="latest_sensors_table"><tr>')
     columns = ["Time", "Temp (C)", "Humidity (%)"]
@@ -497,7 +544,29 @@ def __GetSensorsReadingsTable(sensor_id, ts_start, ts_end):
     return "\n".join(html)
 
 
-def __GetSensorsReadingsGraphData(sensor_id, ts_start, ts_end):
+def __GetBMPE280SensorsReadingsTable(sensor_id, ts_start, ts_end):
+    html = []
+    html.append('<table class="latest_sensors_table"><tr>')
+    columns = ["Time", "Temp (C)", "Humidity (%)", "Pressure (hpa)"]
+    for c in columns: html.append("<th>%s</th>" % c)
+    html.append("</tr>")
+    data = sensors_logs.GetBMPE280Readings(sensor_id, ts_start, ts_end)
+    print data
+    for d in reversed(data):
+        date = HtmlEscape(__TimestampToHuman(d[0]))
+        temp = str(d[1])
+        hum = str(d[2])
+        press = str(d[3])
+        html.append("<tr>")
+        for c in (date, temp, hum, press):
+            html.append("<td>%s</td>" % c)
+        html.append("</tr>")
+    html.append("</table>")
+    if not data: html.append("No measurement found.")
+    return "\n".join(html)
+
+
+def __GetDHT22SensorsReadingsGraphData(sensor_id, ts_start, ts_end):
     js_temp = ["['Time', 'Temperature (C)']"]
     js_hum = ["['Time', 'Humidity (%)']"]
     data = sensors_logs.GetDHT22Readings(sensor_id, ts_start, ts_end)
@@ -506,6 +575,23 @@ def __GetSensorsReadingsGraphData(sensor_id, ts_start, ts_end):
         js_temp.append("[new Date(%d), %f]" % (ts, d[1]))
         js_hum.append("[new Date(%d), %f]" % (ts, d[2]))
     return ",".join(js_temp), ",".join(js_hum)
+
+
+def __GetBMPE280SensorsReadingsGraphData(sensor_id, ts_start, ts_end):
+    js_temp = ["['Time', 'Temperature (C)']"]
+    js_hum = ["['Time', 'Humidity (%)']"]
+    js_press = ["['Time', 'Pressure (hpa)']"]
+    data = sensors_logs.GetBMPE280Readings(sensor_id, ts_start, ts_end)
+    for d in data:
+        ts = 1000 * d[0]
+        if d[1] is not None:
+            js_temp.append("[new Date(%d), %f]" % (ts, d[1]))
+        if d[2] is not None:
+            js_hum.append("[new Date(%d), %f]" % (ts, d[2]))
+        if d[3] is not None:
+            js_press.append("[new Date(%d), %f]" % (ts, d[3]))
+
+    return ",".join(js_temp), ",".join(js_hum), ",".join(js_press)
 
 
 def ViewSensorsHandler(parsed_path):
@@ -517,8 +603,10 @@ def ViewSensorsHandler(parsed_path):
         html.append(HTML_TAIL)
         return 200, "\n".join(html)
     
-    if sensor_type.lower() != "dht22":
-        return 501, "Unsuported sensor type (only dht22 is supported)"
+    sensor_type = sensor_type.lower()
+    if sensor_type not in ("dht22", "bmpe280"):
+        return 501, ("Unsuported sensor type (only dht22, bmpe280 "
+                     "are supported)")
     try:
         sensor_id = int(ExtractParamValue(params, "id"))
         if sensor_id <= 0:
@@ -552,12 +640,31 @@ def ViewSensorsHandler(parsed_path):
     if mode is None or mode.lower() != "graph":
         html = [HTML_HEADER, HTML_TOC, "<h1>View Sensors</h1>"]
         html.append("<h2>DHT22 Sensor: %d </h2>" % sensor_id)
-        html.append(__GetSensorsReadingsTable(sensor_id, ts_start, ts_end))
+        if sensor_type == "dht22":
+            html.append(__GetDHT22SensorsReadingsTable(sensor_id,
+                                                       ts_start, ts_end))
+        elif sensor_type == "bmpe280":
+            html.append(__GetBMPE280SensorsReadingsTable(sensor_id,
+                                                         ts_start, ts_end))
+        else:
+            return 500, "Unhandled sensor type case."
+
         html.append(HTML_TAIL)
         return 200, "\n".join(html)
 
     
-    temp_data_js, hum_data_js = __GetSensorsReadingsGraphData(sensor_id, ts_start, ts_end)
+    if sensor_type == "dht22":
+        html = __GetDHT22SensorsGraphHTML(sensor_id, ts_start, ts_end)
+    elif sensor_type == "bmpe280":
+        html = __GetBMPE280SensorsGraphHTML(sensor_id, ts_start, ts_end)
+    else:
+        return 500, "Unhandled sensor type case."
+    return 200, "\n".join(html)
+
+
+def __GetDHT22SensorsGraphHTML(sensor_id, ts_start, ts_end):
+    temp_data_js, hum_data_js = __GetDHT22SensorsReadingsGraphData(
+        sensor_id, ts_start, ts_end)
     html = [HTML_HEADER_BEGIN, """\
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <script type="text/javascript">
@@ -587,7 +694,51 @@ def ViewSensorsHandler(parsed_path):
     html.append('<div id="temp_chart" class="widechart"></div>')
     html.append('<div id="hum_chart" class="widechart"></div>')
     html.append(HTML_TAIL)
-    return 200, "\n".join(html)
+    return html
+
+
+def __GetBMPE280SensorsGraphHTML(sensor_id, ts_start, ts_end):
+    temp_data_js, hum_data_js, press_data_js = __GetBMPE280SensorsReadingsGraphData(
+        sensor_id, ts_start, ts_end)
+    html = [HTML_HEADER_BEGIN, """\
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+  google.charts.load('current', {packages: ['corechart']});
+  google.charts.setOnLoadCallback(drawChart);
+  function drawChart() {
+    var temp_data = google.visualization.arrayToDataTable([%s]);
+    var temp_options = {
+      title: 'Temperature',
+      curveType: 'function',
+      legend: { position: 'bottom' }
+    };
+    var temp_chart = new google.visualization.LineChart(document.getElementById('temp_chart'));
+    temp_chart.draw(temp_data, temp_options);
+    var hum_data = google.visualization.arrayToDataTable([%s]);
+    var hum_options = {
+      title: 'Humidity',
+      curveType: 'function',
+      legend: { position: 'bottom' }
+    };
+    var hum_chart = new google.visualization.LineChart(document.getElementById('hum_chart'));
+    hum_chart.draw(hum_data, hum_options);
+    var press_data = google.visualization.arrayToDataTable([%s]);
+    var press_options = {
+      title: 'Pressure',
+      curveType: 'function',
+      legend: { position: 'bottom' }
+    };
+    var press_chart = new google.visualization.LineChart(document.getElementById('press_chart'));
+    press_chart.draw(press_data, press_options);
+  }
+</script>""" % (temp_data_js, hum_data_js, press_data_js)]
+    html.extend([HTML_HEADER_END, HTML_TOC, "<h1>View Sensors</h1>"])
+    html.append("<h2>BMP280/BME280 Sensor: %d </h2>" % sensor_id)
+    html.append('<div id="temp_chart" class="widechart"></div>')
+    html.append('<div id="hum_chart" class="widechart"></div>')
+    html.append('<div id="press_chart" class="widechart"></div>')
+    html.append(HTML_TAIL)
+    return html
 
 
 if __name__ == "__main__":

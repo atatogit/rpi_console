@@ -5,6 +5,7 @@ import MySQLdb
 __DB = MySQLdb.connect(
     host="localhost", user="nobody", passwd="nobody", db="sensors")
 
+
 def __FetchAll(sql, params):
     __DB.ping(True)
     c = __DB.cursor()
@@ -14,6 +15,7 @@ def __FetchAll(sql, params):
     results = c.fetchall()
     c.close()
     return results
+
 
 def __Insert(sql, params):
     __DB.ping(True)
@@ -60,6 +62,53 @@ FROM
      GROUP BY device_id) AS T1
 LEFT JOIN
     dht22readings AS T2
+ON T1.device_id = T2.device_id AND
+   T1.max_ts_secs = T2.ts_secs;
+"""
+    return __FetchAll(sql, ())
+
+
+def InsertBMPE280Reading(device_id, date, temperature_c=None,
+                         humidity_perc=None, pressure_hpa=None):
+    # From http://www.sqlite.org/lang_datefunc.html.
+    assert 0 <= date <= 10675199167
+
+    sql = """INSERT INTO bmpe280readings VALUES (%s, %s, %s, %s, %s);"""
+    __Insert(sql, (device_id, date, temperature_c, humidity_perc,
+                   pressure_hpa))
+
+
+def GetBMPE280Readings(device_id, min_date=None, max_date=None):
+    # From http://www.sqlite.org/lang_datefunc.html.
+    if min_date is None: min_date = 0
+    if max_date is None: max_date = 10675199167
+
+    sql = """\
+SELECT
+    ts_secs,
+    temperature_c,
+    humidity_perc,
+    pressure_hpa
+FROM
+    bmpe280readings
+WHERE device_id = %s AND ts_secs BETWEEN %s AND %s
+ORDER BY ts_secs;"""
+
+    return __FetchAll(sql, (device_id, min_date, max_date))
+
+
+def GetLatestBMPE280Readings():
+    sql = """\
+SELECT
+    T2.device_id, T2.ts_secs, T2.temperature_c, T2.humidity_perc,
+    T2.pressure_hpa
+FROM
+    (SELECT   device_id, MAX(ts_secs) AS max_ts_secs
+     FROM     bmpe280readings
+     WHERE    device_id > 0
+     GROUP BY device_id) AS T1
+LEFT JOIN
+    bmpe280readings AS T2
 ON T1.device_id = T2.device_id AND
    T1.max_ts_secs = T2.ts_secs;
 """

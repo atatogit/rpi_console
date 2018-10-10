@@ -15,3 +15,14 @@ CREATE TABLE IF NOT EXISTS sensors.dht22readings (
   PRIMARY KEY(device_id, ts_secs)
 );
 */
+
+/*
+CREATE TABLE IF NOT EXISTS sensors.bmpe280readings (
+  device_id INT UNSIGNED,
+  ts_secs INT UNSIGNED,
+  temperature_c FLOAT,
+  humidity_perc FLOAT,
+  pressure_hpa FLOAT,
+  PRIMARY KEY(device_id, ts_secs)
+);
+*/
