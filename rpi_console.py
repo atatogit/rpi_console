@@ -18,6 +18,10 @@ from rpi_console_handlers import ViewSensorsHandler
 
 PORT = 8080
 
+class ForkingTCPServer(SocketServer.ForkingMixIn, SocketServer.TCPServer):
+  pass
+
+
 if __name__ == "__main__":
   myopts, args = getopt.getopt(sys.argv[1:], "p:")
   port = PORT
@@ -35,7 +39,7 @@ if __name__ == "__main__":
       "/router": RouterLogsHandler,
       "/sensors": SensorsHandler,
       "/viewsensors": ViewSensorsHandler })
-  httpd = SocketServer.TCPServer(("", port), http_handler_class)
+  httpd = ForkingTCPServer(("", port), http_handler_class)
 
   os.chdir("resources")
 
