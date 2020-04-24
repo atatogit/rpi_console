@@ -1,4 +1,4 @@
-#!/usr/local/bin/python2.7
+#!/usr/bin/python
  
 # rtorrent_xmlrpc
 # (c) 2011 Roger Que <alerante@bellsouth.net>
