@@ -1,4 +1,4 @@
-#!/usr/local/bin/python2.7
+#!/usr/bin/python
 
 def levenshtein(a,b):
     "Calculates the Levenshtein distance between a and b."
