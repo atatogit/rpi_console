@@ -15,16 +15,16 @@ __rtorrent = SCGIServerProxy('scgi:///home/seba/rtorrent_session/socket')
 __download_dir = "/mnt/big/rtorrent_downloads"
 
 def PushLink(link):
-    __rtorrent.load_start_verbose(link)
+    __rtorrent.load.start_verbose('', link)
 
 def DeleteTorrent(torrent_hash):
     __rtorrent.d.erase(torrent_hash)
     
 def GetDownloadListHtml():
-    data = __rtorrent.d.multicall(
-        "", 
-        "d.get_hash=", "d.get_name=", "d.get_state=", "d.get_size_bytes=",
-        "d.get_bytes_done=", "d.get_down_rate=", "d.get_up_rate=")
+    data = __rtorrent.d.multicall2(
+        "", "", 
+        "d.hash=", "d.name=", "d.state=", "d.size_bytes=",
+        "d.bytes_done=", "d.down.rate=", "d.up.rate=")
     html = ['<table class="rtorrent_download_table"><tr>']
     columns = ["Name", "State", "Size", "Done", "Down (Kb/sec)", "Up (Kb/sec)",
                "Subtitles"]
@@ -67,14 +67,14 @@ def __BuildExecuteMethodOrNone(method):
             raise        
     return ExecuteMethodOrNone
 
-GetTorrentName = __BuildExecuteMethodOrNone(__rtorrent.d.get_name)
-GetTorrentSizeFiles = __BuildExecuteMethodOrNone(__rtorrent.d.get_size_files)
+GetTorrentName = __BuildExecuteMethodOrNone(__rtorrent.d.name)
+GetTorrentSizeFiles = __BuildExecuteMethodOrNone(__rtorrent.d.size_files)
 __GetFilesData = __BuildExecuteMethodOrNone(__rtorrent.f.multicall)
 
 def GetTorrentFiles(torrent_hash):
     is_multi_file = __rtorrent.d.is_multi_file(torrent_hash)
-    pre_path = __rtorrent.d.get_name(torrent_hash) if is_multi_file else ""
-    data = __GetFilesData(torrent_hash, "", "f.get_path=")
+    pre_path = __rtorrent.d.name(torrent_hash) if is_multi_file else ""
+    data = __GetFilesData(torrent_hash, "", "f.path=")
     if data is None: return None
     return [os.path.join(pre_path, f[0]) for f in data]
     
