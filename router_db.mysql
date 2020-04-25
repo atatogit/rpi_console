@@ -4,6 +4,8 @@
 
 /* GRANT SELECT ON router.* to nobody@localhost identified by 'nobody'; */
 
+/* GRANT SELECT ON Syslog.* to nobody@localhost identified by 'nobody'; */
+
 /*
 CREATE TABLE IF NOT EXISTS router.devices (
   mac VARCHAR(17),
@@ -31,10 +33,10 @@ INSERT INTO router.knowndevices (mac, name) VALUES
   ('10:bf:48:c0:6a:31', 'Tamagoshi padre');
 */
 
-DROP TRIGGER IF EXISTS rsyslogmysql.device_trigger;
+DROP TRIGGER IF EXISTS Syslog.device_trigger;
 delimiter $$
-CREATE TRIGGER rsyslogmysql.device_trigger 
-       AFTER INSERT ON rsyslogmysql.SystemEvents
+CREATE TRIGGER Syslog.device_trigger 
+       AFTER INSERT ON Syslog.SystemEvents
 FOR EACH ROW 
 BEGIN
   DECLARE newdhcptype TEXT DEFAULT NULL;
@@ -68,13 +70,13 @@ BEGIN
             substring_index(substring_index(NEW.Message, ' ', 3), ' ', -1);
           SET newhostname =
             substring_index(substring_index(NEW.Message, ' ', 5), ' ', -1);
-          IF NOT (SELECT EXISTS(SELECT 1 FROM router.knowndevices 
-                                WHERE mac = newmac)) THEN
-            SET exeret = sys_exec(CONCAT(
-              "/bin/bash -c 'echo New device detected: \"", 
-              newmac, 
-              "\" | /usr/bin/mail -s WARNING spueblas@gmail.com'&"));
-          END IF;
+          -- IF NOT (SELECT EXISTS(SELECT 1 FROM router.knowndevices 
+          --                       WHERE mac = newmac)) THEN
+          --   SET exeret = sys_exec(CONCAT(
+          --     "/bin/bash -c 'echo New device detected: \"", 
+          --     newmac, 
+          --     "\" | /usr/bin/mail -s WARNING spueblas@gmail.com'&"));
+          -- END IF;
         END IF;
 
         IF NULLIF(newip, '') IS NOT NULL THEN
