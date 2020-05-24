@@ -2,9 +2,62 @@
 
 import MySQLdb
 
+from google.cloud import monitoring_v3
+
+
 __DB = MySQLdb.connect(
     host="localhost", user="nobody", passwd="nobody", db="sensors")
 
+__GCP_PROJECT = "spueblas-smart-home"
+__GCP_LOCATION = "us-east1"
+__GCP_METRIC_NAMESPACE = ""
+__TEMPERATURE_METRIC = "custom.googleapis.com/temperature_c"
+__HUMIDITY_METRIC = "custom.googleapis.com/humidity_perc"
+__PRESSURE_METRIC = "custom.googleapis.com/pressure_hpa"
+
+
+def __GetMetricTimeseries(device_type, device_id, metric_type, date, value):
+    series = monitoring_v3.types.TimeSeries()
+
+    series.metric.type = metric_type
+    series.resource.type = "generic_node"
+    series.resource.labels["project_id"] = __GCP_PROJECT
+    series.resource.labels["location"] = __GCP_LOCATION
+    series.resource.labels["node_id"] = "%s_%s" % (device_type, device_id)
+    series.resource.labels["namespace"] = __GCP_METRIC_NAMESPACE
+
+    point = series.points.add()
+    point.value.double_value = value
+    point.interval.end_time.seconds = date
+    point.interval.end_time.nanos = 0
+
+    return series
+    
+
+def __PushMetricsToStackDriver(device_type, device_id, date,
+                               temperature_c=None, humidity_perc=None,
+                               pressure_hpa=None):
+
+    series = []
+    if temperature_c is not None:
+        series.append(
+            __GetMetricTimeseries(device_type, device_id, __TEMPERATURE_METRIC,
+                                  date, temperature_c))
+    if humidity_perc is not None:
+        series.append(
+            __GetMetricTimeseries(device_type, device_id, __HUMIDITY_METRIC,
+                                  date, humidity_perc))
+    if pressure_hpa is not None:
+        series.append(
+            __GetMetricTimeseries(device_type, device_id, __PRESSURE_METRIC,
+                                  date, pressure_hpa))
+
+    if series:
+        client = \
+            monitoring_v3.MetricServiceClient.from_service_account_json(
+            "../service_account.json")
+        client.create_time_series(client.project_path(__GCP_PROJECT), series)
+    
 
 def __FetchAll(sql, params):
     __DB.ping(True)
@@ -31,6 +84,9 @@ def InsertDHT22Reading(device_id, date, temperature_c=None, humidity_perc=None):
 
     sql = """INSERT INTO dht22readings VALUES (%s, %s, %s, %s);"""
     __Insert(sql, (device_id, date, temperature_c, humidity_perc))
+
+    __PushMetricsToStackDriver("DHT22", device_id, date, temperature_c,
+                               humidity_perc, None)
 
 
 def GetDHT22Readings(device_id, min_date=None, max_date=None):
@@ -76,6 +132,10 @@ def InsertBMPE280Reading(device_id, date, temperature_c=None,
     sql = """INSERT INTO bmpe280readings VALUES (%s, %s, %s, %s, %s);"""
     __Insert(sql, (device_id, date, temperature_c, humidity_perc,
                    pressure_hpa))
+
+    __PushMetricsToStackDriver("BMPE280", device_id, date, temperature_c,
+                               humidity_perc, pressure_hpa)
+
 
 
 def GetBMPE280Readings(device_id, min_date=None, max_date=None):
