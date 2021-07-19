@@ -8,6 +8,7 @@ import gzip
 import json
 import os
 import struct
+import sys
 import threading
 from time import sleep, time
 import xmlrpclib
