@@ -47,7 +47,7 @@ WAIT_TORRENT_PUSH_SECS = 1.0
 
 WAIT_TORRENT_DELETE_SECS = 0.5
 
-DOWNLOADS_DIR = "/mnt/wdtv/downloads/"
+DOWNLOADS_DIR = "/mnt/extern/downloads/"
 
 
 def GetOutputCmd(name="unknown", *args):
@@ -336,7 +336,7 @@ def DownloadSubHandler(torrent_hash, sub_url, movie_file, html):
     if len(sub_fname) < 5 or sub_fname[-4] != '.':
         html.append("Bad subtitle file name: " % HtmlEscape(sub_fname))
         return    
-    sub_file = "%s.%s" % (movie_file_noext, sub_fname[-3:])
+    sub_file = "%s_rpi.%s" % (movie_file_noext, sub_fname[-3:])
     if base_dir and not os.path.exists(base_dir): os.makedirs(base_dir)
     f = open(sub_file, "w")
     f.write(sub_data)

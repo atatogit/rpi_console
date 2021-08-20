@@ -22,7 +22,7 @@ def __GetRpiConsoleLogUrl(event_type, h, name=None, movie_size=None,
         params += "&movie_size=%d" % movie_size
     if opensubtitles_hash:
         params += "&opensubtitles_hash=%s" % str(opensubtitles_hash)
-    return "http://raspi:8080/rtorrentlogs?%s" % params
+    return "http://192.168.1.106:8080/rtorrentlogs?%s" % params
 
 
 if __name__ == "__main__":
@@ -33,7 +33,6 @@ if __name__ == "__main__":
         url = __GetRpiConsoleLogUrl("insert", torrent_hash, name)
         print urllib.urlopen(url).read()
     elif event == "finished":
-        torrent_hash = sys.argv[2]
         base_path = sys.argv[3]
         name = torrent.GetTorrentName(torrent_hash)
         assert name
@@ -51,9 +50,5 @@ if __name__ == "__main__":
         url = __GetRpiConsoleLogUrl("finished", torrent_hash, name,
                                     movie_size, opensubtitles_hash)
         print urllib.urlopen(url).read()
-        # Now do the move.
-        src_dir =  sys.argv[4]
-        target_dir = sys.argv[5]
-        subprocess.call(["mergetodir.py", src_dir, target_dir])
     else:
         sys.exit(1)

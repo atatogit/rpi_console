@@ -304,4 +304,4 @@ if __name__ == "__main__":
     
     # print len(DownloadSubtitle("1955037593"))
 
-    #print HashFile(r"/mnt/wdtv/downloads/The.Americans.2013.S06E05.HDTV.x264-SVA[rarbg]/The.Americans.2013.S06E05.HDTV.x264-SVA.mkv")
+    #print HashFile(r"/mnt/extern/downloads/The.Americans.2013.S06E05.HDTV.x264-SVA[rarbg]/The.Americans.2013.S06E05.HDTV.x264-SVA.mkv")

@@ -12,8 +12,6 @@ __STATES = ("CLOSED", "STARTED")
 
 __rtorrent = SCGIServerProxy('scgi:///home/seba/rtorrent_session/socket')
 
-__download_dir = "/mnt/big/rtorrent_downloads"
-
 def PushLink(link):
     __rtorrent.load.start_verbose('', link)
 
