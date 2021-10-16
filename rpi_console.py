@@ -6,6 +6,7 @@ import os
 import sys
 
 from generic_http_handler import SimpleGenericHandler
+from rpi_console_handlers import AdbChangeProxyHandler
 from rpi_console_handlers import SysActionHandler
 from rpi_console_handlers import SysActionMenuHandler
 from rpi_console_handlers import SysConsoleHandler
@@ -38,7 +39,8 @@ if __name__ == "__main__":
       "/subs": SubsHandler,
       "/router": RouterLogsHandler,
       "/sensors": SensorsHandler,
-      "/viewsensors": ViewSensorsHandler })
+      "/viewsensors": ViewSensorsHandler,
+      "/adbchangeproxy": AdbChangeProxyHandler})
   httpd = ForkingTCPServer(("", port), http_handler_class)
 
   os.chdir("resources")

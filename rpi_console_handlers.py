@@ -79,7 +79,8 @@ ActionShutdown = ActionCmd(
     "shutdown", "/usr/local/bin/sudo_shutdown", "-h", "now")
 ActionRestart = ActionCmd(
     "shutdown", "/usr/local/bin/sudo_shutdown", "-r", "now")
-
+ActionAdbConnect = ActionCmd(
+        "adb_connect", "/usr/bin/adb", "connect", "192.168.1.13:5555")
 
 def GetTemp():
     try:
@@ -740,6 +741,22 @@ def __GetBMPE280SensorsGraphHTML(sensor_id, ts_start, ts_end):
     html.append('<div id="press_chart" class="widechart"></div>')
     html.append(HTML_TAIL)
     return html
+
+
+def AdbChangeProxyHandler(parsed_path):
+    params = urlparse.parse_qs(parsed_path.query)
+    proxy_url = ExtractParamValue(params, "proxy") or ":0"
+
+    if not ActionAdbConnect():
+        return 500, "Failed to connect to ADB device"
+
+    action_set_proxy = ActionCmd(
+        "adb_set_proxy", "/usr/bin/adb", "shell", "settings", "put", "global",
+        "http_proxy", proxy_url)
+    if not action_set_proxy():
+        return 500, "Failed to set proxy"
+
+    return 200, "Done setting proxy\n"
 
 
 if __name__ == "__main__":
