@@ -60,15 +60,19 @@ def GetOutputCmd(name="unknown", *args):
     return f
 
 
-def ActionCmd(name="unknown", *args):
+def ActionCmdWithEnv(name, env, *args):
     def f():
         try:
-            is_ok = (subprocess.call(args) == 0)
+            is_ok = (subprocess.call(args, env=env) == 0)
         except:
             is_ok = False
         if not is_ok: print >>sys.stdout, "Error executing %s" % name
         return is_ok
     return f
+
+
+def ActionCmd(name, *args):
+    return ActionCmdWithEnv(name, None, *args)
         
 
 GetDf = GetOutputCmd("df", "/bin/df", "-h")
@@ -79,8 +83,9 @@ ActionShutdown = ActionCmd(
     "shutdown", "/usr/local/bin/sudo_shutdown", "-h", "now")
 ActionRestart = ActionCmd(
     "shutdown", "/usr/local/bin/sudo_shutdown", "-r", "now")
-ActionAdbConnect = ActionCmd(
-        "adb_connect", "/usr/bin/adb", "connect", "192.168.1.13:5555")
+ADB_ENV = { "HOME": "/home/seba/ADBHOME" }
+ActionAdbConnect = ActionCmdWithEnv(
+        "adb_connect", ADB_ENV, "/usr/bin/adb", "connect", "192.168.1.13:5555")
 
 def GetTemp():
     try:
@@ -750,9 +755,9 @@ def AdbChangeProxyHandler(parsed_path):
     if not ActionAdbConnect():
         return 500, "Failed to connect to ADB device"
 
-    action_set_proxy = ActionCmd(
-        "adb_set_proxy", "/usr/bin/adb", "shell", "settings", "put", "global",
-        "http_proxy", proxy_url)
+    action_set_proxy = ActionCmdWithEnv(
+        "adb_set_proxy", ADB_ENV, "/usr/bin/adb", "shell", "settings", "put",
+        "global", "http_proxy", proxy_url)
     if not action_set_proxy():
         return 500, "Failed to set proxy"
 
