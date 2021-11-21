@@ -36,7 +36,7 @@ Go to:
 <a accesskey="r" href="/router">Router</a>,
 <a accesskey="a" href="/sysactmenu">Actions</a>,
 <a accesskey="s" href="/viewsensors">Sensors</a>
-<a accesskey="g" href="http://gce.anark.org:3000/d/YAzgndzGz/weather?orgId=1">NEW sensors</a>
+<a accesskey="g" href="https://gce.anark.org:3000/d/YAzgndzGz/weather?orgId=1">NEW sensors</a>
 </div>"""
 
 HTML_ACTIONS_TITLE = "<h1>Raspi System Action</h1>"
