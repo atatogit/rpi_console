@@ -86,6 +86,8 @@ ActionRestart = ActionCmd(
 ADB_ENV = { "HOME": "/home/seba/ADBHOME" }
 ActionAdbConnect = ActionCmdWithEnv(
         "adb_connect", ADB_ENV, "/usr/bin/adb", "connect", "192.168.1.13:5555")
+REBOOT_REQUIRED_FILE = "/var/run/reboot-required"
+
 
 def GetTemp():
     try:
@@ -94,6 +96,10 @@ def GetTemp():
     except:
         print >>sys.stdout, "Error reading temperature"
         return None
+
+
+def IsRebootRequired():
+    return os.path.isfile(REBOOT_REQUIRED_FILE)
 
 
 def ExecuteShutdown():
@@ -162,6 +168,8 @@ def SysConsoleHandler(parsed_path):
     html = [HTML_HEADER, HTML_TOC, "<h1>Raspi Console</h1><ul>"]
     temp = GetTemp()
     temp = "%.2f" % temp if temp is not None else "Error"
+    if IsRebootRequired():
+        html.append("<li><span style='color:red'>REBOOT REQUIRED</span></li>")
     html.append("""\
 <li><b>Core temperature:</b> %s &#176;C</li>
 <li><b>Memory info:</b><PRE>%s</PRE></li>
